@@ -126,7 +126,7 @@ function scene() {
     ? `오라클 숨겨진 노드 표시 · ${oracleUnlocked() ? '배분 가능' : '보이지 않는 길 전직 미배분'}`
     : '노드를 선택하면 효과 및 배분 경로를 확인할 수 있습니다';
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
-  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked() });
+  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [] });
   refreshSearch(false); persist();
 }
 function showDetail(n) {
