@@ -24,6 +24,7 @@ export class TreeRenderer {
     this.nodes = nodes;
     this.nodeMap = new Map(nodes.map(n => [n.id, n]));
     this.edges = allEdges.filter(e => this.nodeMap.has(e.a) && this.nodeMap.has(e.b));
+    this.orbitRadii = options.orbitRadii ?? [];
     this.allocated = options.allocated ?? new Set();
     this.rootIds = new Set(Array.isArray(options.rootId) ? options.rootId : [options.rootId]);
     this.lockedOracle = !!options.lockedOracle;
@@ -111,11 +112,22 @@ export class TreeRenderer {
       const activated = (this.allocated.has(a.id) || this.rootIds.has(a.id)) && (this.allocated.has(b.id) || this.rootIds.has(b.id));
       ctx.strokeStyle = activated ? '#69baa9' : a.hiddenOracle || b.hiddenOracle ? '#69618a9c' : '#455262b8';
       ctx.beginPath(); ctx.moveTo(p.x, p.y);
-      if (edge.orbit && edge.orbit !== 2147483647) {
+      const radius = (this.orbitRadii[Math.abs(edge.orbit)] || 0) * this.zoom;
+      if (edge.orbit && radius > 0) {
         const dx = q.x - p.x, dy = q.y - p.y;
-        const len = Math.hypot(dx, dy);
-        const bend = Math.min(len * .32, this.zoom * 65) * Math.sign(edge.orbit);
-        ctx.quadraticCurveTo((p.x + q.x) / 2 - dy / (len || 1) * bend, (p.y + q.y) / 2 + dx / (len || 1) * bend, q.x, q.y);
+        const dist = Math.hypot(dx, dy);
+        if (dist > .000001 && dist < radius * 2) {
+          // Match the game's circular orbit connector instead of an approximate Bezier.
+          const perpendicular = Math.sqrt(Math.max(0, radius * radius - dist * dist / 4)) * Math.sign(edge.orbit);
+          const cx = (p.x + q.x) / 2 + perpendicular * dy / dist;
+          const cy = (p.y + q.y) / 2 - perpendicular * dx / dist;
+          const start = Math.atan2(p.y - cy, p.x - cx);
+          const end = Math.atan2(q.y - cy, q.x - cx);
+          let sweep = end - start;
+          if (sweep > Math.PI) sweep -= Math.PI * 2;
+          if (sweep < -Math.PI) sweep += Math.PI * 2;
+          ctx.arc(cx, cy, radius, start, start + sweep, sweep < 0);
+        } else ctx.lineTo(q.x, q.y);
       } else ctx.lineTo(q.x, q.y);
       ctx.stroke();
     }
