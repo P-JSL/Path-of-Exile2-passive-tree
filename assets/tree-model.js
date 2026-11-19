@@ -46,7 +46,7 @@ export function buildTree(raw) {
     if (root) classStarts.set(c.name, root.id);
   }
   const ascStarts = new Map([...nodes.values()].filter(n => n.isAscendancyStart).map(n => [n.ascendancyName, n.id]));
-  return { nodes, edges, adjacent, classes: raw.classes.map(c => c.name), ascendancies, classStarts, ascStarts, version: '0_5' };
+  return { nodes, edges, adjacent, classes: raw.classes.map(c => c.name), ascendancies, classStarts, ascStarts, orbitRadii: [...radii], version: '0_5' };
 }
 
 export function visibleNodes(tree, mode, ascendancy, showOracle) {
