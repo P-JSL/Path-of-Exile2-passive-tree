@@ -23,6 +23,7 @@ test('preserves coordinates, IDs, links, starts, classifications', () => {
   assert.equal(tree.ascStarts.get('Oracle'), 9);
   assert.ok(tree.adjacent.get(3).has(2));
   assert.equal(tree.edges.length, 5);
+  assert.deepEqual(tree.orbitRadii, [0]);
 });
 test('Oracle unlock condition gates visibility in the ordinary scene', () => {
   const tree = buildTree(base);
