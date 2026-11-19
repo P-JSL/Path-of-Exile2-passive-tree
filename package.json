@@ -1,0 +1,13 @@
+{
+  "name": "path-of-exile2-passive-tree",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Static data-backed Path of Exile 2 passive and ascendancy skill-tree planner",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "test": "node --test tests/*.test.mjs",
+    "validate": "node scripts/validate.mjs",
+    "check": "npm run test && npm run validate"
+  }
+}

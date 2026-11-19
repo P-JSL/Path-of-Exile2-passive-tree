@@ -1,0 +1,11 @@
+{
+  "characterTreeVersion": "0_5",
+  "source": "PathOfBuildingCommunity/PathOfBuilding-PoE2",
+  "sourceFile": "src/TreeData/0_5/tree.json",
+  "sourceBlobSha": "2fcfcadf078bb5b589f0757f5f27de716ae8cd74",
+  "atlasSource": "repoe-fork/poe2/data/passive_skill_trees/Atlas.json",
+  "atlasBlobSha": "c8ad15af6b158e3252c38609cbb4584b85d714ad",
+  "genesisSource": "repoe-fork/poe2/data/passive_skill_trees/BrequelTree.json",
+  "genesisBlobSha": "31e687a8c4386c207c82f0717c0a6c126ba7420e",
+  "notes": "Data are bundled locally and rendered without third-party runtime calls. Update deliberately after version verification."
+}

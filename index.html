@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b1119">
+  <meta name="description" content="PoE2 패시브와 전직 트리를 실제 게임 데이터 기반으로 탐색하고 빌드를 계획하는 무료 웹 뷰어">
+  <title>Exile Tree | Path of Exile 2 패시브 트리</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b1119'/%3E%3Cpath d='M32 5 52 23 45 51 32 59 19 51 12 23Z' fill='none' stroke='%23c1a66d' stroke-width='4'/%3E%3Ccircle cx='32' cy='31' r='9' fill='%235ed5c6'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./assets/styles.css">
+  <script type="module" src="./assets/app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header class="site-header">
+      <div class="brand"><div class="brand-emblem">✥</div><div><span class="brand-overline">PATH OF EXILE 2 · TREE PLANNER</span><strong>EXILE <span>TREE</span></strong></div></div>
+      <nav class="tree-tabs" aria-label="트리 유형">
+        <button id="tab-passive" class="tree-tab active" data-mode="passive" aria-pressed="true">일반 패시브</button>
+        <button id="tab-ascendancy" class="tree-tab" data-mode="ascendancy" aria-pressed="false">전직 트리</button>
+        <button id="tab-atlas" class="tree-tab" data-mode="atlas" aria-pressed="false">아틀라스</button>
+        <button id="tab-genesis" class="tree-tab" data-mode="genesis" aria-pressed="false">제네시스</button>
+      </nav>
+      <div class="header-actions"><span class="version-label" id="version-label">PoE2 · loading</span><button id="sidebar-toggle" class="icon-button mobile-only" aria-label="설정 열기">☰</button></div>
+    </header>
+
+    <div class="workspace">
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-title"><span>BUILD CONFIGURATION</span><button id="sidebar-close" class="icon-button mobile-only" aria-label="설정 닫기">✕</button></div>
+        <section class="control-group" id="class-controls">
+          <label for="class-select">기본 직업</label><select id="class-select" aria-label="기본 직업"><option>불러오는 중…</option></select>
+          <label for="ascendancy-select">전직 직업</label><select id="ascendancy-select" aria-label="전직 직업"><option value="">선택 없음</option></select>
+          <p class="helper" id="class-description">직업 선택에 따라 시작 지점과 전직 노드가 변경됩니다.</p>
+        </section>
+        <section class="control-group">
+          <label for="search-input">패시브 검색</label>
+          <div class="searchbox"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="노드 이름 또는 효과 검색" autocomplete="off" spellcheck="false"><button id="search-clear" aria-label="검색어 지우기">×</button></div>
+          <div id="search-results" class="search-results" role="listbox" aria-label="패시브 검색 결과"></div>
+          <p class="helper" id="search-hint">선택한 트리에서 노드 이름과 효과를 검색합니다.</p>
+        </section>
+        <section id="oracle-settings" class="control-group oracle-control" hidden>
+          <div class="control-head"><span>ORACLE · HIDDEN PATHS</span><span class="oracle-mark">◆</span></div>
+          <label class="switch-line"><input id="oracle-toggle" type="checkbox" checked><span>보이지 않는 길 노드 표시</span></label>
+          <p class="helper">오라클 전직 시 표시되는 추가 노드 197개. 실제 게임에서 배분하려면 전직 패시브를 먼저 획득해야 합니다.</p>
+        </section>
+        <section class="control-group plan-controls">
+          <div class="control-head"><span>계획 포인트</span><button id="clear-plan" class="text-button">초기화</button></div>
+          <div class="points-grid"><div><strong id="normal-points">0</strong><span id="normal-points-label">일반</span></div><div><strong id="ascendancy-points">0</strong><span id="ascendancy-points-label">전직</span></div></div>
+          <button id="share-plan" class="wide-button">링크 복사 · 계획 공유</button>
+          <p class="helper">브라우저에 계획을 자동 저장합니다. 게임 내 실제 포인트 및 연결 제약은 별도 확인이 필요합니다.</p>
+        </section>
+        <div class="source-note"><strong>실제 데이터 기반</strong><span id="data-summary">데이터를 불러오고 있습니다.</span><a href="https://github.com/grindinggear/poe2-skilltree-export" target="_blank" rel="noopener noreferrer">GGG 패시브 원본 ↗</a><a href="https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2" target="_blank" rel="noopener noreferrer">Path of Building 추출 데이터 ↗</a></div>
+      </aside>
+
+      <main class="stage" aria-label="패시브 트리 지도">
+        <div class="stage-header">
+          <div><div id="stage-eyebrow" class="eyebrow">FULL PASSIVE SKILL TREE</div><h1 id="stage-title">패시브 트리</h1><p id="stage-subtitle">노드를 누르면 효과를 볼 수 있습니다.</p></div>
+          <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
+        </div>
+        <div id="canvas-wrap" class="canvas-wrap">
+          <canvas id="tree-canvas" aria-label="패시브 트리 지도. 손가락으로 이동하고 두 손가락으로 확대할 수 있습니다."></canvas>
+          <div id="loading-overlay" class="loading-overlay" role="status"><div class="loader"></div><strong>실제 패시브 데이터 로드 중</strong><span>게임 데이터와 연결 관계를 처리하고 있습니다.</span></div>
+          <div id="error-overlay" class="loading-overlay error-overlay" hidden><strong>데이터를 불러오지 못했습니다.</strong><p id="error-message"></p><button id="retry-button" class="wide-button">다시 시도</button></div>
+          <div class="canvas-badge" id="status-badge">관찰 모드 · 노드를 선택해 정보를 확인하세요</div>
+          <div class="map-controls"><button id="zoom-in" aria-label="확대" title="확대">+</button><button id="zoom-out" aria-label="축소" title="축소">−</button><button id="fit-all" aria-label="전체 트리 보기" title="전체 보기">⛶</button><button id="focus-start" aria-label="시작 지점으로 이동" title="시작 지점">◎</button></div>
+          <div class="canvas-legend"><span><i class="dot-base"></i>기본</span><span><i class="dot-notable"></i>주요</span><span><i class="dot-allocated"></i>배분</span><span id="oracle-legend" hidden><i class="dot-oracle"></i>오라클 추가</span></div>
+        </div>
+        <div class="mobile-bottom-bar"><button id="mobile-search">⌕ <span>노드 검색</span></button><button id="mobile-details">◈ <span>노드 정보</span></button><button id="mobile-settings">☰ <span>설정</span></button></div>
+      </main>
+
+      <aside id="details-panel" class="details-panel">
+        <div class="details-title"><span>PASSIVE DETAILS</span><button id="details-close" class="icon-button mobile-only" aria-label="상세 닫기">✕</button></div>
+        <div id="details-placeholder" class="details-placeholder"><div class="placeholder-glyph">◇</div><strong>패시브를 선택하세요</strong><p>맵의 노드를 누르면 정확한 패시브 효과, 분류, 요구 연결 경로를 확인할 수 있습니다.</p></div>
+        <div id="details-content" hidden><span id="detail-type" class="detail-type">일반 패시브</span><h2 id="detail-name"></h2><div id="detail-stats" class="detail-stats"></div><div id="detail-notice" class="detail-notice" hidden></div><div class="detail-meta"><span>패시브 ID</span><code id="detail-id"></code></div><button id="allocate-button" class="wide-button accent-button">경로를 따라 배분</button><p id="allocation-message" class="helper"></p></div>
+        <div class="details-footer"><p>게임 내 배분과 무관한 계획 도구입니다. 수치 및 위치는 제공된 게임 패시브 트리 데이터와 동일합니다.</p></div>
+      </aside>
+    </div>
+    <div id="scrim" class="scrim" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+</body>
+</html>
