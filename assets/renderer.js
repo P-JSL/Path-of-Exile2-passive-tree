@@ -15,7 +15,7 @@ export class TreeRenderer {
     this.isInteracting = false;
     this.allocated = new Set();
     this.zoom = .03; this.centerX = 0; this.centerY = 0;
-    this.width = 0; this.height = 0; this.selectedId = null; this.searchMatches = new Set();
+    this.width = 0; this.height = 0; this.selectedId = null; this.searchMatches = new Set(); this.searchActive = false; this.previewPath = new Set();
     this.pointerMap = new Map(); this.pointerStart = null; this.pinchStart = null;
     this.isTouch = window.matchMedia('(pointer:coarse)').matches;
     this.pendingDraw = false;
@@ -57,6 +57,8 @@ export class TreeRenderer {
     this.selectedId = options.selectedId ?? null;
     this.localizeName = options.localizeName ?? (n => n.name);
     this.searchMatches = options.searchMatches ?? new Set();
+    this.searchActive = !!options.searchActive;
+    this.previewPath = options.previewPath ?? new Set();
     this.fitAll();
   }
   loadBackground(className) {
@@ -88,7 +90,9 @@ export class TreeRenderer {
     if (options.allocated) this.allocated = options.allocated;
     if ('selectedId' in options) this.selectedId = options.selectedId;
     if ('lockedOracle' in options) this.lockedOracle = options.lockedOracle;
-    if (options.searchMatches) this.searchMatches = options.searchMatches;
+    if ('searchMatches' in options) this.searchMatches = options.searchMatches;
+    if ('searchActive' in options) this.searchActive = !!options.searchActive;
+    if ('previewPath' in options) this.previewPath = options.previewPath;
     if (options.localizeName) this.localizeName = options.localizeName;
     this.schedule();
   }
@@ -154,6 +158,9 @@ export class TreeRenderer {
     // Each connection uses actual source and target skill IDs; nonzero orbit edges curve.
     const d = this.zoom;
     ctx.lineWidth = Math.max(.65, Math.min(2.8, .9 + d * 2));
+    // Combine same-color connectors into a few strokes per frame instead of
+    // issuing thousands of expensive Canvas stroke() calls on every pan.
+    const edgePaths = typeof Path2D === 'undefined' ? null : new Map();
     for (const edge of this.viewportIndex.visibleEdges(left, top, right, bottom, 500)) {
       const a = this.nodeMap.get(edge.a), b = this.nodeMap.get(edge.b);
       // Orbit arcs can cross the viewport when both endpoints are off-screen.
@@ -168,8 +175,13 @@ export class TreeRenderer {
       const activated = (this.allocated.has(a.id) || this.rootIds.has(a.id)) && (this.allocated.has(b.id) || this.rootIds.has(b.id));
       const selected = a.id === this.selectedId || b.id === this.selectedId;
       // Unallocated edges stay understated at full-tree zoom; active/selected paths stand out.
-      ctx.strokeStyle = activated ? '#69baa9' : selected ? '#b8a174bb' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
-      ctx.beginPath();
+      const route = (this.previewPath.has(a.id) && this.previewPath.has(b.id));
+      const style = route ? '#e2b868' : activated ? '#69baa9' : selected ? '#b8a174bb' : this.searchActive ? '#465b6f2a' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
+      let path;
+      if (edgePaths) {
+        path = edgePaths.get(style);
+        if (!path) { path = new Path2D(); edgePaths.set(style, path); }
+      } else { path = ctx; ctx.strokeStyle = style; ctx.beginPath(); }
       const sameOrbit = edge.orbit && a.group === b.group && a.orbit === b.orbit &&
         Number.isFinite(a.groupX) && Number.isFinite(a.groupY);
       const radius = (this.orbitRadii[a.orbit] || 0) * this.zoom;
@@ -182,11 +194,17 @@ export class TreeRenderer {
         let sweep = end - start;
         if (sweep > Math.PI) sweep -= Math.PI * 2;
         if (sweep < -Math.PI) sweep += Math.PI * 2;
-        ctx.arc(center.x, center.y, radius, start, start + sweep, sweep < 0);
+        // Explicit moveTo isolates this arc from other paths in its color batch.
+        path.moveTo(p.x, p.y);
+        path.arc(center.x, center.y, radius, start, start + sweep, sweep < 0);
       } else {
-        ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+        path.moveTo(p.x, p.y); path.lineTo(q.x, q.y);
       }
-      ctx.stroke();
+      if (!edgePaths) ctx.stroke();
+    }
+    if (edgePaths) for (const [style, path] of edgePaths) {
+      ctx.strokeStyle = style;
+      ctx.stroke(path);
     }
     const normal = [], special = [];
     for (const n of this.viewportIndex.visibleNodes(left, top, right, bottom, 500)) {
@@ -201,7 +219,7 @@ export class TreeRenderer {
     const noteworthy = n.category !== 'normal';
     let radius = Math.max(noteworthy ? 2.3 : 1.2, Math.min(noteworthy ? 15 : 9, this.zoom * (noteworthy ? 36 : 21)));
     const allocated = this.allocated.has(n.id), highlighted = n.id === this.selectedId;
-    const activeSearch = this.searchMatches.has(n.id);
+    const activeSearch = this.searchMatches.has(n.id), previewed = this.previewPath.has(n.id);
     const locked = this.lockedOracle && n.hiddenOracle;
     const color = allocated ? '#6be0be' : n.hiddenOracle ? '#a99bea' : n.category === 'keystone' ? '#edbb75' : n.category === 'notable' ? '#d4b16a' : n.category === 'start' ? '#fff0b6' : n.category === 'socket' ? '#809df2' : '#8194a3';
     if (highlighted || activeSearch) {
@@ -209,7 +227,8 @@ export class TreeRenderer {
       ctx.fillStyle = highlighted ? '#ead19750' : '#7fbdd12d'; ctx.fill();
       ctx.strokeStyle = highlighted ? '#f7d78f' : '#96d1f1'; ctx.lineWidth = highlighted ? 2 : 1.2; ctx.stroke();
     }
-    ctx.globalAlpha = locked ? .55 : 1;
+    const dimmed = this.searchActive && !activeSearch && !highlighted && !allocated && !previewed;
+    ctx.globalAlpha = locked ? .55 : dimmed ? .30 : 1;
     const rendered = this.drawOfficialNode(n, p, allocated);
     if (rendered) {
       if (this.zoom >= .2 && (n.category === 'keystone' || n.category === 'start')) {
@@ -218,6 +237,7 @@ export class TreeRenderer {
       }
       ctx.globalAlpha = 1;
       this.drawWeaponSetRing(n, p, radius, allocated);
+      if (activeSearch || highlighted || previewed) this.drawSearchOutline(p, radius, highlighted, previewed);
       return;
     }
     ctx.fillStyle = allocated ? '#54d9b6' : '#111c2a';
@@ -233,6 +253,19 @@ export class TreeRenderer {
     }
     ctx.globalAlpha = 1;
     this.drawWeaponSetRing(n, p, radius, allocated);
+    if (activeSearch || highlighted || previewed) this.drawSearchOutline(p, radius, highlighted, previewed);
+  }
+  drawSearchOutline(position, radius, selected, previewed = false) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius + (selected ? 9 : 7), 0, Math.PI * 2);
+    ctx.lineWidth = selected ? 3 : 2.2;
+    ctx.strokeStyle = selected ? '#ffe3a0' : previewed ? '#62e4c5' : '#ffd567';
+    ctx.shadowColor = selected ? '#efb858' : previewed ? '#29caa9' : '#f4c04e';
+    ctx.shadowBlur = selected ? 9 : this.searchMatches.size > 80 ? 0 : 5;
+    ctx.stroke();
+    ctx.restore();
   }
   drawWeaponSetRing(n, position, radius, allocated) {
     if (!allocated || this.zoom < .09) return;

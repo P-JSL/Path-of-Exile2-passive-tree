@@ -2,6 +2,7 @@ import { importPobCode, resolvePobTree } from './pob-import.js';
 import { renderPobProfile } from './pob-profile.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
+import { buildPassiveSearchIndex, searchPassiveIndex } from './passive-search.js';
 import { buildExtraTree } from './extra-model.js';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, tr, passiveName, passiveStat } from './i18n.js';
 import { ATTRIBUTES, isAnyAttributeNode, selectedAttributeStat, validAttributeChoices, encodeAttributeChoices, decodeAttributeChoices } from './attributes.js';
@@ -73,6 +74,7 @@ function updateDataSummary() {
 const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {}, budgets: {} };
 let currentNodes = [], currentIds = new Set();
 let searchCache = null;
+let searchResults = [], searchIndex = -1, searchTimer = null;
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
 function localName(item, mode = state.mode) {
@@ -348,6 +350,7 @@ function scene() {
     if (start) renderer.focus(start.x, start.y, state.mode === 'ascendancy' ? .27 : .19);
   }
   $('connection-count').textContent = t('edgeCount',{count:renderer.edges.length.toLocaleString(state.language)});
+  if (state.selectedId) refreshAllocationPreview(model.nodes.get(state.selectedId));
   renderAllocatedList(); refreshSearch(false); persist();
 }
 function allocationGroups() {
@@ -421,12 +424,43 @@ async function selectMode(mode) {
   }
   setPobBuildView(false);
   state.mode = mode; state.selectedId = null; state.search = '';
+  clearTimeout(searchTimer);
   $('search-input').value = '';
   scene(); closeOverlay();
   return true;
 }
+function refreshAllocationPreview(n) {
+  const element = $('allocation-preview');
+  element.hidden = true;
+  if (!renderer || !n || !currentIds.has(n.id)) {
+    renderer?.update({ previewPath:new Set() });
+    return;
+  }
+  const model = activeTree(), selected = allocatedSet(), preview = new Set();
+  if (selected.has(n.id)) {
+    element.textContent = t('previewAllocated');
+    element.hidden = false;
+  } else if (nodeAllowed(n)) {
+    const route = n.isFreeAllocate ? [n.id] :
+      shortestAllocationPath(model, n.id, currentIds, selected, rootId(), nodeAllowed);
+    if (route === null) {
+      element.textContent = t('pathFail');
+      element.hidden = false;
+    } else {
+      const check = validateAllocationRoute(model, selected, route, ruleContext());
+      if (check.ok) {
+        for (const id of route) preview.add(id);
+        const addedPoints = countUsedPoints(model, check.allocated) - countUsedPoints(model, selected);
+        element.textContent = t('previewRoute', {nodes:route.length,points:addedPoints});
+      } else element.textContent = ruleMessage(check);
+      element.hidden = false;
+    }
+  }
+  renderer.update({ previewPath:preview });
+}
 function showDetail(n) {
   closeKeywordNote();
+  refreshAllocationPreview(n);
   $('details-placeholder').hidden = !!n;
   $('details-content').hidden = !n;
   if (!n) return;
@@ -472,38 +506,77 @@ function onNodeSelected(n) {
   showDetail(n); renderAllocatedList();
   if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
 }
+function updateSearchNavigator() {
+  const nav = $('search-navigator');
+  nav.hidden = !state.search.trim();
+  if (nav.hidden) return;
+  const current = searchResults[searchIndex];
+  $('search-nav-name').textContent = current ? current.name : (searchResults.length ? t('search') : t('searchNoResult'));
+  $('search-nav-count').textContent = t('searchNavigate', {index:current ? searchIndex + 1 : 0,total:searchResults.length});
+  $('search-prev').disabled = !searchResults.length;
+  $('search-next').disabled = !searchResults.length;
+  for (const result of $('search-results').querySelectorAll('.result-item')) {
+    const active = current && Number(result.dataset.nodeId) === current.id;
+    result.classList.toggle('active', !!active);
+    result.setAttribute('aria-selected', String(!!active));
+  }
+}
 function selectSearchNode(id) {
   const n = activeTree().nodes.get(id); if (!n) return;
   state.selectedId = n.id;
+  searchIndex = searchResults.findIndex(entry => entry.id === n.id);
   renderer.focus(n.x, n.y, Math.max(renderer.zoom, .34));
-  renderer.update({ selectedId: id });
-  showDetail(n); renderAllocatedList(); closeOverlay();
-  if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
+  renderer.update({ selectedId:id });
+  showDetail(n); renderAllocatedList();
+  updateSearchNavigator();
+  // On a phone, keep the located passive visible instead of covering it
+  // immediately with the bottom-sheet details panel.
+  closeOverlay();
+}
+function moveSearch(step) {
+  if (!searchResults.length) return;
+  const next = (searchIndex + step + searchResults.length) % searchResults.length;
+  selectSearchNode(searchResults[next].id);
+}
+function clearSearch() {
+  clearTimeout(searchTimer);
+  state.search = '';
+  $('search-input').value = '';
+  refreshSearch();
 }
 function refreshSearch(show = true) {
-  const q = state.search.trim().toLocaleLowerCase();
-  const results = $('search-results'); results.replaceChildren();
-  const matches = new Set();
+  const q = state.search.trim();
+  const results = $('search-results');
+  const fragment = document.createDocumentFragment();
   if (q) {
-    // Build the normalized search document once per scene/language instead of
-    // translating thousands of passives on every individual keystroke.
-    if (!searchCache) searchCache = currentNodes.map(n => ({
-      id:n.id,
-      text:[n.name, localName(n), ...n.stats, ...localizedStats(n)].join(' ').toLocaleLowerCase()
-    }));
-    for (const entry of searchCache) if (entry.text.includes(q)) matches.add(entry.id);
-  }
+    // Translation and search documents are computed only once per scene and language.
+    if (!searchCache) searchCache = buildPassiveSearchIndex(currentNodes.map(n => ({
+      id:n.id, name:localName(n), originalName:n.name,
+      stats:localizedStats(n), originalStats:n.stats
+    })));
+    searchResults = searchPassiveIndex(searchCache, q);
+  } else searchResults = [];
+  searchIndex = searchResults.findIndex(entry => entry.id === state.selectedId);
   if (q && show) {
-    for (const n of currentNodes.filter(n => matches.has(n.id)).slice(0, 30)) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'result-item'; b.setAttribute('role', 'option');
-      const title = document.createElement('strong'); title.textContent = localName(n);
-      const details = document.createElement('small'); details.textContent = n.stats[0] ? localStat(n.stats[0]) : localName(n.ascendancyName || '');
-      b.append(title, details); b.addEventListener('click', () => selectSearchNode(n.id)); results.append(b);
+    const visible = searchResults.slice(0, 40);
+    for (const entry of visible) {
+      const n = activeTree().nodes.get(entry.id);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'result-item';
+      b.setAttribute('role', 'option'); b.dataset.nodeId = String(entry.id);
+      const title = document.createElement('strong'); title.textContent = entry.name;
+      const details = document.createElement('small');
+      details.textContent = n?.stats?.[0] ? localizedStats(n)[0] : String(entry.id);
+      b.append(title, details);
+      b.addEventListener('click', () => selectSearchNode(entry.id));
+      fragment.append(b);
     }
   }
+  results.replaceChildren(fragment);
   results.classList.toggle('visible', !!q && show);
-  $('search-hint').textContent = q ? t('resultCount',{count:matches.size}) : t('searchHint');
-  renderer?.update({ searchMatches: matches });
+  $('search-hint').textContent = q ? t('resultCount',{count:searchResults.length}) : t('searchHint');
+  renderer?.update({ searchMatches:new Set(searchResults.map(n => n.id)), searchActive:!!q });
+  updateSearchNavigator();
 }
 function toggleAllocation() {
   const id = state.selectedId, model = activeTree(), n = model?.nodes.get(id);
@@ -752,8 +825,26 @@ function wireUI() {
   $('class-select').addEventListener('change', e => { state.className = e.target.value; state.selectedId = null; populateAscendancies(); scene(); });
   $('ascendancy-select').addEventListener('change', e => { state.ascendancy = e.target.value; state.selectedId = null; scene(); });
   $('oracle-toggle').addEventListener('change', e => { state.showOracle = e.target.checked; scene(); });
-  $('search-input').addEventListener('input', e => { state.search = e.target.value; refreshSearch(); });
-  $('search-clear').addEventListener('click', () => { $('search-input').value = ''; state.search = ''; refreshSearch(); });
+  $('search-input').addEventListener('input', e => {
+    state.search = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => refreshSearch(), 85);
+  });
+  $('search-input').addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); clearTimeout(searchTimer); refreshSearch();
+      moveSearch(e.key === 'ArrowDown' ? 1 : -1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault(); clearTimeout(searchTimer); refreshSearch();
+      if (searchResults.length) moveSearch(1);
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); clearSearch();
+    }
+  });
+  $('search-clear').addEventListener('click', clearSearch);
+  $('search-nav-clear').addEventListener('click', clearSearch);
+  $('search-prev').addEventListener('click', () => moveSearch(-1));
+  $('search-next').addEventListener('click', () => moveSearch(1));
   $('allocate-button').addEventListener('click', toggleAllocation);
   $('point-budget').addEventListener('change', e => {
     const value = e.target.value.trim();

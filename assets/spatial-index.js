@@ -9,6 +9,10 @@ export class ViewportIndex {
     this.cellSize = cellSize;
     this.nodeCells = new Map();
     this.edgeCells = new Map();
+    this.nodeBounds = { minX:Infinity, maxX:-Infinity, minY:Infinity, maxY:-Infinity };
+    this.edgeBounds = { minX:Infinity, maxX:-Infinity, minY:Infinity, maxY:-Infinity };
+    this.allNodes = new Set(nodes);
+    this.allEdges = new Set(edges);
     for (const node of nodes) this.insert(this.nodeCells, node.x, node.y, node.x, node.y, node);
     for (const edge of edges) {
       const a = nodeMap.get(edge.a), b = nodeMap.get(edge.b);
@@ -31,6 +35,9 @@ export class ViewportIndex {
     const size = this.cellSize;
     for (let x = Math.floor(left / size); x <= Math.floor(right / size); x++) {
       for (let y = Math.floor(top / size); y <= Math.floor(bottom / size); y++) {
+        const bounds = cells === this.nodeCells ? this.nodeBounds : this.edgeBounds;
+        bounds.minX = Math.min(bounds.minX, x); bounds.maxX = Math.max(bounds.maxX, x);
+        bounds.minY = Math.min(bounds.minY, y); bounds.maxY = Math.max(bounds.maxY, y);
         const key = x + ':' + y;
         if (!cells.has(key)) cells.set(key, []);
         cells.get(key).push(item);
@@ -40,9 +47,20 @@ export class ViewportIndex {
 
   query(cells, left, top, right, bottom, margin = 0) {
     const size = this.cellSize;
+    const bounds = cells === this.nodeCells ? this.nodeBounds : this.edgeBounds;
+    if (!Number.isFinite(bounds.minX)) return new Set();
+    // A fully zoomed-out tree can span thousands of empty world cells.
+    // Clamp to occupied cells and reuse the precomputed complete set.
+    const x0 = Math.max(bounds.minX, Math.floor((left - margin) / size));
+    const x1 = Math.min(bounds.maxX, Math.floor((right + margin) / size));
+    const y0 = Math.max(bounds.minY, Math.floor((top - margin) / size));
+    const y1 = Math.min(bounds.maxY, Math.floor((bottom + margin) / size));
+    if (x0 > x1 || y0 > y1) return new Set();
+    if (x0 === bounds.minX && x1 === bounds.maxX && y0 === bounds.minY && y1 === bounds.maxY)
+      return cells === this.nodeCells ? this.allNodes : this.allEdges;
     const found = new Set();
-    for (let x = Math.floor((left - margin) / size); x <= Math.floor((right + margin) / size); x++) {
-      for (let y = Math.floor((top - margin) / size); y <= Math.floor((bottom + margin) / size); y++) {
+    for (let x = x0; x <= x1; x++) {
+      for (let y = y0; y <= y1; y++) {
         for (const item of cells.get(x + ':' + y) || []) found.add(item);
       }
     }
