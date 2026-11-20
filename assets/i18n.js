@@ -59,6 +59,7 @@ const STRINGS = {
     ruleUnallocatable:'배분할 수 없는 시작 또는 표시 전용 노드입니다.',ruleOtherAscendancy:'선택한 전직의 노드만 배분할 수 있습니다.',
     ruleLocked:'해당 전직 조건을 충족해야 합니다.',rulePrerequisite:'선행 패시브 ID {id}을(를) 먼저 배분해야 합니다.',
     ruleExclusiveChoice:'같은 선택 그룹에서는 하나의 노드만 사용할 수 있습니다.',rulePointBudget:'포인트 한도를 초과합니다. 사용 {used} / 한도 {max}.',
+    ruleDisconnected:'연결되지 않은 노드가 기존 계획에 포함되어 있습니다.',
     noAsc:'선택 없음'
   },
   en: {
@@ -118,6 +119,7 @@ const STRINGS = {
     ruleUnallocatable:'Start and decorative nodes cannot be allocated.',ruleOtherAscendancy:'Only nodes in the selected Ascendancy can be allocated.',
     ruleLocked:'This Ascendancy requirement is not met.',rulePrerequisite:'Allocate prerequisite passive ID {id} first.',
     ruleExclusiveChoice:'Only one option in this choice group can be selected.',rulePointBudget:'Point limit exceeded: spent {used} / limit {max}.',
+    ruleDisconnected:'The saved plan contains disconnected passives.',
     noAsc:'None'
   }
 };
