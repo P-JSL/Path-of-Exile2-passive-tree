@@ -62,7 +62,7 @@ test('parse active spec, weapon sets, attribute overrides, skill, gear and confi
   assert.deepEqual(result.specs[1].nodeIds,[2,3,4,999999,5,6]);
   assert.deepEqual(result.specs[1].weaponSets,[[5,2],[6]]);
   assert.deepEqual(result.specs[1].attributeChoices,{2:'str',5:'str',6:'int'});
-  assert.deepEqual(result.specs[1].sockets,[{nodeId:4,itemId:'3'}]);
+  assert.deepEqual(result.specs[1].sockets,[{nodeId:4,itemId:'3',text:'Rarity: UNIQUE\nArcane Robe'}]);
   assert.equal(result.skillSets[0].groups[0].gems[0].name,'Spark');
   assert.match(result.itemSets[0].slots[0].text,/Arcane Robe/);
   assert.equal(result.configSets[0].inputs[0].boolean,'true');
