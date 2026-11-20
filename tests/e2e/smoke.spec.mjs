@@ -133,3 +133,23 @@ test('compressed URL-safe PoB2 share codes decode in desktop and touch WebKit', 
   expect(stored?.source).toBe(code);
   expect(errors).toEqual([]);
 });
+
+test('Genesis shows an internal-modifier warning instead of claiming verified effects', async ({page, isMobile}) => {
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  await page.locator('#tab-genesis').click();
+  await expect(page.locator('#scene-count')).toContainText(/[0-9]/);
+  if (isMobile) await page.locator('#mobile-search').click();
+  await page.locator('#search-input').fill('Twisted Pursuit');
+  const result=page.locator('.result-item').first();
+  await expect(result).toBeVisible();
+  await result.click();
+  if (isMobile) await page.locator('#mobile-details').click();
+  const warning=page.locator('#stat-source-notice');
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText(/내부 키|internal game-data keys/);
+  await expect(page.locator('#detail-stats')).toContainText('brequel_reward_stalking_belt_chance_%: 5');
+  expect(errors).toEqual([]);
+});
