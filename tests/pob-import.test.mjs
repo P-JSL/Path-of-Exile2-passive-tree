@@ -59,7 +59,7 @@ test('parse active spec, weapon sets, attribute overrides, skill, gear and confi
   assert.equal(result.className,'Druid');
   assert.equal(result.level,'95');
   assert.equal(result.activeIndex,1);
-  assert.deepEqual(result.specs[1].nodeIds,[2,3,4,999999,5,6]);
+  assert.deepEqual(result.specs[1].nodeIds,[2,3,4,999999]);
   assert.deepEqual(result.specs[1].weaponSets,[[5,2],[6]]);
   assert.deepEqual(result.specs[1].attributeChoices,{2:'str',5:'str',6:'int'});
   assert.deepEqual(result.specs[1].sockets,[{nodeId:4,itemId:'3',text:'Rarity: UNIQUE\nArcane Robe'}]);
@@ -78,12 +78,34 @@ test('resolve only real matching node IDs and retain missing/other ascendancy re
     ])
   };
   const result=resolvePobTree(parsePobDocument(build()),model);
-  assert.deepEqual(result.ordinary,[2,3,5]);
+  assert.deepEqual(result.ordinary,[2,3]);
   assert.deepEqual(result.specialized,[4]);
-  assert.deepEqual(result.incompatible,[6]);
+  assert.deepEqual(result.incompatible,[]);
   assert.deepEqual(result.unknown,[999999]);
 });
+test('weapon-set markers outside Spec.nodes do not invent allocated nodes',()=>{
+  const parsed=parsePobDocument(build());
+  const spec=parsed.specs[1];
+  assert.deepEqual(spec.nodeIds,[2,3,4,999999]);
+  assert.deepEqual(spec.weaponSets,[[5,2],[6]]);
+  // The marker IDs remain available for diagnostics but not for allocation.
+  assert.equal(spec.nodeIds.includes(5),false);
+  assert.equal(spec.nodeIds.includes(6),false);
+});
+
 test('reject PoB1 and malformed tree formats',()=>{
   assert.throws(()=>parsePobDocument(doc(xmlNode('PathOfBuilding'))),/PoE1/);
   assert.throws(()=>parsePobDocument(doc(xmlNode('PathOfBuilding2'))),/정보가 없습니다/);
+});
+
+test('reject marker-only malformed PoB2 spec instead of clearing the existing plan',()=>{
+  const result=parsePobDocument(build());
+  result.specs[1].nodeIds=[];
+  const model={
+    classes:['Druid'],
+    ascendancies:[{className:'Druid',name:'Oracle'}],
+    nodes:new Map([[2,{id:2}],[5,{id:5}]])
+  };
+  assert.throws(()=>resolvePobTree(result,model),/Spec.nodes/);
+  assert.deepEqual(result.specs[1].weaponSets,[[5,2],[6]]);
 });

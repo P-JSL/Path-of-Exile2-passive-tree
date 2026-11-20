@@ -72,7 +72,10 @@ export function parsePobDocument(doc) {
       treeVersion: attr(spec, 'treeVersion'),
       classInternalId: attr(spec, 'classInternalId'),
       ascendancyInternalId: attr(spec, 'ascendancyInternalId'),
-      nodeIds: [...new Set([...ids(attr(spec, 'nodes')), ...weapons.flat()])],
+      // PoB2 PassiveSpec: Spec.nodes is the authoritative complete allocation
+      // list. WeaponSet1/2 only mark the mode for already allocated node IDs.
+      // Do not synthesize additional allocations from malformed markers.
+      nodeIds: [...new Set(ids(attr(spec, 'nodes')))],
       weaponSets: weapons,
       sockets: children(child(spec, 'Sockets'), 'Socket').map(s => ({nodeId:Number(attr(s,'nodeId')),itemId:attr(s,'itemId')})),
       attributeChoices
@@ -145,6 +148,10 @@ export async function importPobCode(code) {
 export function resolvePobTree(build, model, index = build.activeIndex) {
   const spec = build.specs[index];
   if (!spec) throw new Error('선택한 빌드 트리가 없습니다.');
+  // A malformed export can contain weapon-set markers but no authoritative
+  // Spec.nodes. Never interpret such a source as an empty build and wipe a plan.
+  if (!spec.nodeIds.length && spec.weaponSets.some(set => set.length))
+    throw new Error('PoB2의 패시브 목록(Spec.nodes)이 비어 있으나 무기 세트 노드가 존재합니다. 기존 계획을 변경하지 않았습니다.');
   const className = build.className;
   if (!model.classes.includes(className)) throw new Error('현재 트리 데이터에 없는 직업입니다: ' + className);
   const candidates = model.ascendancies.filter(a => a.className === className).map(a => a.name);
