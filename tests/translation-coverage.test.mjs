@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {auditTranslationRows,simplifyGameText} from '../scripts/translation-coverage.mjs';
+import {auditTranslationRows,simplifyGameText,describeEffectSources} from '../scripts/translation-coverage.mjs';
 
 test('coverage counts only translated display strings, not stripped source markup',()=>{
   const rows=[
@@ -31,4 +31,30 @@ test('zero-content report and repeated unknown text do not count fabricated tran
   assert.equal(report.untranslatedNames[0].occurrences,2);
   assert.deepEqual(report.untranslatedStats[0].exampleIds,[1,2]);
   assert.equal(report.translatedStats,0);
+});
+
+test('Genesis internal modifier keys cannot count as translated game effect lines',()=>{
+  const source={
+    1:{hash:1,name:'Reward',stats:{brequel_reward_increased_item_chance:25}},
+    2:{hash:2,name:'Modifier',stats:{brequel_modifier_a:1,brequel_modifier_b:2}},
+    3:{hash:3,name:'Empty',stats:{}}
+  };
+  const provenance=describeEffectSources(source,true);
+  assert.deepEqual(provenance,{
+    humanReadableNodes:0,internalKeyNodes:2,internalKeyEntries:3,withoutEffectsNodes:1
+  });
+  const rows=Object.values(source).map(n=>({id:n.hash,name:n.name,stats:n.stat_text || []}));
+  const result=auditTranslationRows(rows,n=>n.name,()=> '가짜 번역');
+  assert.equal(result.statLines,0);
+  assert.equal(result.translatedStats,0);
+});
+test('Atlas real game text is measured independently from machine-only fields',()=>{
+  const provenance=describeEffectSources({
+    1:{stat_text:['10% increased Map Drops'],stats:{game_modifier_id:10}},
+    2:{stat_text:[],stats:{internal_only:5}},
+    3:{stat_text:[],stats:{}}
+  },true);
+  assert.deepEqual(provenance,{
+    humanReadableNodes:1,internalKeyNodes:1,internalKeyEntries:1,withoutEffectsNodes:1
+  });
 });
