@@ -21,7 +21,8 @@ test('gear summary does not invent item names and preserves raw item text',()=>{
 });
 test('profile selects active equipment and skill sets including jewel and weapon metadata',()=>{
   const snapshot=profileSnapshot(source);
-  assert.equal(snapshot.equipment.length,1);
+  assert.equal(snapshot.equipment.length,2);
+  assert.equal(snapshot.equipment[1].text,'');
   assert.equal(snapshot.equipment[0].name,'Body Armour');
   assert.equal(snapshot.skillGroups[0].gems.length,2);
   assert.equal(snapshot.jewels[0].nodeId,3);
