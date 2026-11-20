@@ -97,3 +97,15 @@ test('reject PoB1 and malformed tree formats',()=>{
   assert.throws(()=>parsePobDocument(doc(xmlNode('PathOfBuilding'))),/PoE1/);
   assert.throws(()=>parsePobDocument(doc(xmlNode('PathOfBuilding2'))),/정보가 없습니다/);
 });
+
+test('reject marker-only malformed PoB2 spec instead of clearing the existing plan',()=>{
+  const result=parsePobDocument(build());
+  result.specs[1].nodeIds=[];
+  const model={
+    classes:['Druid'],
+    ascendancies:[{className:'Druid',name:'Oracle'}],
+    nodes:new Map([[2,{id:2}],[5,{id:5}]])
+  };
+  assert.throws(()=>resolvePobTree(result,model),/Spec.nodes/);
+  assert.deepEqual(result.specs[1].weaponSets,[[5,2],[6]]);
+});
