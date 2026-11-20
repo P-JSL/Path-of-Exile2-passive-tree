@@ -52,7 +52,10 @@ export class TreeRenderer {
   setScene(nodes, allEdges, options = {}) {
     this.nodes = nodes;
     this.nodeMap = new Map(nodes.map(n => [n.id, n]));
-    this.worldBounds = getBounds(nodes, 400);
+    // Keep the same world bounds for Oracle ON/OFF. Otherwise hiding nodes
+    // near an outer boundary can clamp the camera and move the user's view.
+    const comparisonNodes = options.oracleDifference?.nodes || [];
+    this.worldBounds = getBounds(comparisonNodes.length ? [...nodes, ...comparisonNodes] : nodes, 400);
     // Long-distance logical links (class → separate ascendancy tree, Pathfinder portals)
     // are not visible map connectors. Keep them in the model for path logic.
     this.edges = allEdges.filter(e => {
@@ -140,7 +143,10 @@ export class TreeRenderer {
     if (!prevWidth && this.nodes.length) this.fitAll(); else this.schedule();
   }
   fitAll() {
-    const box = getBounds(this.nodes, 600);
+    // An explicitly requested overview also includes ghost Oracle positions.
+    const nodes = this.oracleComparison && this.oracleDifference?.nodes?.length
+      ? [...this.nodes, ...this.oracleDifference.nodes] : this.nodes;
+    const box = getBounds(nodes, 600);
     this.centerX = (box.minX + box.maxX) / 2;
     this.centerY = (box.minY + box.maxY) / 2;
     if (this.width && this.height) {
