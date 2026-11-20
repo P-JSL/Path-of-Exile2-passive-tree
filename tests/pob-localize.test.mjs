@@ -22,12 +22,21 @@ test('slot labels and calculation labels localize without modifying stat keys',(
  assert.equal(localizePobMetric('EnduranceChargesMax','ko',d),'최대 인내 충전 수');
  assert.equal(localizePobMetric('UnrecognizedStats123','ko',d),'UnrecognizedStats123');
 });
-test('all digits and numeric decimal precision survive Korean grouping',()=>{
- assert.equal(formatPobValue('5025251.53575','ko'),'5,025,251.53575');
- assert.equal(formatPobValue('3903543.6036629','ko'),'3,903,543.6036629');
- assert.equal(formatPobValue('0.77678571428571','ko'),'0.77678571428571');
- assert.equal(formatPobValue('10e3','ko'),'10e3');
- assert.equal(formatPobValue('5025251.53575','en'),'5025251.53575');
+test('PoB numeric display rounds to two decimals without changing source',()=>{
+  assert.equal(formatPobValue('5025251.53575','ko'),'5,025,251.54');
+  assert.equal(formatPobValue('3903543.6036629','ko'),'3,903,543.60');
+  assert.equal(formatPobValue('0.77678571428571','ko'),'0.78');
+  assert.equal(formatPobValue('1.005','ko'),'1.01');
+  assert.equal(formatPobValue('9.999','ko'),'10.00');
+  assert.equal(formatPobValue('-0.005','ko'),'-0.01');
+  assert.equal(formatPobValue('-0.004','ko'),'0.00');
+  assert.equal(formatPobValue('100.4','ko'),'100.40');
+  assert.equal(formatPobValue('0','ko'),'0');
+  assert.equal(formatPobValue('1234','ko'),'1,234');
+  assert.equal(formatPobValue('999999999999999999.999','ko'),'1,000,000,000,000,000,000.00');
+  assert.equal(formatPobValue('10e3','ko'),'10e3');
+  assert.equal(formatPobValue('5025251.53575','en'),'5025251.54');
+  assert.equal(formatPobValue('100.4','en'),'100.40');
 });
 test('item attributes preserve values, unique identifiers and unknown modifier text',()=>{
  assert.equal(localizePobItemLine('Rarity: RARE'),'등급: 희귀');
