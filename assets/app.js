@@ -1,5 +1,6 @@
 import { importPobCode, resolvePobTree } from './pob-import.js';
 import { renderPobProfile } from './pob-profile.js';
+import { partitionPobWeaponSets } from './weapon-sets.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
 import { buildPassiveSearchIndex, searchPassiveIndex } from './passive-search.js';
@@ -16,6 +17,7 @@ const KEY = 'exile-tree-plans-v1';
 const POB_SOURCE_KEY = 'exile-tree-pob2-source-v1';
 let importedPob = null;
 let pobBuildView = false;
+let pobWeaponView = 'all';
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
@@ -235,6 +237,31 @@ function allocatedSet() {
   const key = state.mode === 'passive' ? state.className : state.mode === 'ascendancy' ? state.ascendancy : state.mode;
   return new Set(record[key] || []);
 }
+/** Imported PoB allocations remain read-only while a weapon view is selected. */
+function importedWeaponPartition() {
+  if (!importedPob || state.mode !== 'passive' ||
+      importedPob.build.className !== state.className) return null;
+  return partitionPobWeaponSets(importedPob.build.specs[importedPob.selectedIndex]);
+}
+function isWeaponPreview() {
+  return pobWeaponView !== 'all' && !!importedWeaponPartition();
+}
+function displayedAllocatedSet() {
+  const partition = importedWeaponPartition();
+  if (!partition || pobWeaponView === 'all') return allocatedSet();
+  return new Set(pobWeaponView === '1' ? partition.active1 : partition.active2);
+}
+function updateWeaponSetControls() {
+  const partition = importedWeaponPartition();
+  const element = $('weapon-set-controls');
+  element.hidden = !partition;
+  if (!partition) return;
+  const input = $('pob-weapon-view');
+  input.value = pobWeaponView;
+  const count = pobWeaponView === '1' ? partition.active1.size :
+    pobWeaponView === '2' ? partition.active2.size : partition.all.size;
+  $('pob-weapon-count').textContent = t('pobWeaponCount', {count});
+}
 function ruleContext() {
   return {
     mode:state.mode, className:state.className, ascendancy:state.ascendancy,
@@ -343,7 +370,8 @@ function scene() {
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
   const importSpec = state.mode === 'passive' && importedPob?.build.className === state.className
     ? importedPob.build.specs[importedPob.selectedIndex] : null;
-  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className),
+  updateWeaponSetControls();
+  renderer.setScene(currentNodes, model.edges, { allocated: displayedAllocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className),
     weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []) });
   // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
   // Keep the entire world rendered and the existing Fit All control available.
@@ -434,7 +462,7 @@ async function selectMode(mode) {
 function refreshAllocationPreview(n) {
   const element = $('allocation-preview');
   element.hidden = true;
-  if (!renderer || !n || !currentIds.has(n.id)) {
+  if (!renderer || !n || !currentIds.has(n.id) || isWeaponPreview()) {
     renderer?.update({ previewPath:new Set() });
     return;
   }
@@ -491,7 +519,10 @@ function showDetail(n) {
   $('detail-id').textContent = String(n.id);
   const notice = $('detail-notice'); notice.hidden = true;
   const button = $('allocate-button'), allocated = allocatedSet();
-  if (rootIds().includes(n.id) || n.isAscendancyStart || n.classesStart || n.isOnlyImage) {
+  if (isWeaponPreview()) {
+    button.disabled = true; button.textContent = t('pobWeaponReadOnly');
+    notice.hidden = false; notice.textContent = t('pobWeaponReadOnlyHelp');
+  } else if (rootIds().includes(n.id) || n.isAscendancyStart || n.classesStart || n.isOnlyImage) {
     button.disabled = true; button.textContent = t('noAlloc');
   } else if (n.hiddenOracle && !oracleUnlocked()) {
     button.disabled = true; button.textContent = t('lockedAlloc');
@@ -584,6 +615,7 @@ function refreshSearch(show = true) {
   updateSearchNavigator();
 }
 function toggleAllocation() {
+  if (isWeaponPreview()) { toast(t('pobWeaponReadOnlyHelp')); return; }
   const id = state.selectedId, model = activeTree(), n = model?.nodes.get(id);
   if (!n || !currentIds.has(id)) return;
   if (!nodeAllowed(n)) { toast(t('prerequisite')); return; }
@@ -685,7 +717,12 @@ function renderPobOverview() {
   $('pob-meta').textContent = [build.className, build.ascendancyName, build.level ? 'Lv ' + build.level : '', 'Nodes ' + spec.nodeIds.length]
     .filter(Boolean).join(' · ') + ' · W1 ' + spec.weaponSets[0].length + ' / W2 ' + spec.weaponSets[1].length;
   const resolution = resolvePobTree(build, tree, selectedIndex);
+  const partition = partitionPobWeaponSets(spec);
   const issues = [];
+  if (partition.overlaps.length || partition.orphaned.length)
+    issues.push(t('pobWeaponInconsistent', {
+      overlap:partition.overlaps.length,orphan:partition.orphaned.length
+    }));
   if (resolution.unknown.length) issues.push(t('pobMissing',{count:resolution.unknown.length}));
   if (resolution.incompatible.length) issues.push(t('pobIncompatible',{count:resolution.incompatible.length}));
   // The parser supports multiple historical PoB tree versions. Never silently
@@ -730,6 +767,7 @@ function applyImportedPobSelection(index, requireConfirmation = true) {
   state.ascendancy = target.ascendancy ||
     tree.ascendancies.find(a => a.className === target.className)?.name || '';
   state.mode = 'passive';
+  pobWeaponView = 'all';
   state.selectedId = null;
   state.search = '';
   $('search-input').value = '';
@@ -879,6 +917,14 @@ function wireUI() {
   $('pob-import').addEventListener('click', () => { void importPobFromInput(); });
   $('pob-view-toggle').addEventListener('click', () => setPobBuildView(!pobBuildView));
   $('pob-back-tree').addEventListener('click', () => setPobBuildView(false));
+  $('pob-weapon-view').addEventListener('change', e => {
+    const mode = e.target.value;
+    if (!['all','1','2'].includes(mode)) return;
+    pobWeaponView = mode;
+    updateWeaponSetControls();
+    renderer?.update({ allocated:displayedAllocatedSet(), previewPath:new Set() });
+    if (state.selectedId) showDetail(activeTree().nodes.get(state.selectedId));
+  });
   $('pob-spec-select').addEventListener('change', e => {
     try {
       if (!applyImportedPobSelection(Number(e.target.value))) e.target.value = String(importedPob.selectedIndex);
@@ -898,6 +944,9 @@ function wireUI() {
   $('pob-delete').addEventListener('click', () => {
     if (!importedPob || !confirm(t('pobDeleteConfirm'))) return;
     importedPob = null;
+    pobWeaponView = 'all';
+    renderer?.update({allocated:allocatedSet(),weaponSet1:new Set(),weaponSet2:new Set()});
+    updateWeaponSetControls();
     setPobBuildView(false);
     try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
     $('pob-import-result').textContent = '';
