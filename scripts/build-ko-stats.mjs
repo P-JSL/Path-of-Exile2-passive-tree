@@ -42,6 +42,40 @@ try {
     console.log('PoE2DB Korean example: ' + JSON.stringify(Object.values(probe.nodes || {})[0] || {}).slice(0,300));
   }
 } catch (error) { console.log('PoE2DB Korean probe unavailable: ' + String(error)); }
+// The authoritative game table uses indexed placeholders such as {0} and {0:+d}.
+const placeholderRe = /\{(\d+)(?::[^}]*)?\}/g;
+const indexedTemplates = new Map();
+for (const [english, korean] of Object.entries(upstream)) {
+  if (typeof english !== 'string' || typeof korean !== 'string' || !english.includes('{0}')) {
+    // {0:+d} must also be recognised below.
+    if (!/\{0(?::[^}]*)?\}/.test(english)) continue;
+  }
+  if (!/\{\d+(?::[^}]*)?\}/.test(korean)) continue;
+  const placeholders = [...english.matchAll(placeholderRe)].map(match => Number(match[1]));
+  if (!placeholders.length) continue;
+  const sig = simplify(english).replace(placeholderRe, '{NUM}');
+  const previous = indexedTemplates.get(sig);
+  if (previous === undefined) indexedTemplates.set(sig, {english, korean, placeholders});
+  else if (previous?.korean !== korean || previous?.english !== english) indexedTemplates.set(sig, null);
+}
+function interpolateIndexedTemplate(text) {
+  const example = indexedTemplates.get(signature(text));
+  if (!example) return null;
+  const values = text.match(numberRe) || [];
+  if (values.length !== example.placeholders.length) return null;
+  const replacements = new Map();
+  for (let i = 0; i < values.length; i++) {
+    const index = example.placeholders[i];
+    if (replacements.has(index) && replacements.get(index) !== values[i]) return null;
+    replacements.set(index, values[i]);
+  }
+  let incomplete = false;
+  const out = example.korean.replace(placeholderRe, (matched, index) => {
+    if (!replacements.has(Number(index))) { incomplete = true; return matched; }
+    return replacements.get(Number(index));
+  });
+  return incomplete ? null : simplify(out);
+}
 const templateLookup = new Map();
 for (const dict of [upstream, translate]) for (const [english, korean] of Object.entries(dict)) {
   if (typeof english !== 'string' || typeof korean !== 'string' || english === korean || !english || !korean) continue;
@@ -56,6 +90,8 @@ function translateLine(text) {
   if (locale.stats?.[text]) return locale.stats[text];
   if (typeof upstream[text] === 'string') return upstream[text];
   if (typeof translate[text] === 'string') return translate[text];
+  const indexed = interpolateIndexedTemplate(text);
+  if (indexed) return indexed;
   const example = templateLookup.get(signature(text));
   if (!example) return null;
   const values = text.match(numberRe) || [];
