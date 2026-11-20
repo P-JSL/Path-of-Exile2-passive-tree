@@ -350,6 +350,7 @@ function scene() {
     if (start) renderer.focus(start.x, start.y, state.mode === 'ascendancy' ? .27 : .19);
   }
   $('connection-count').textContent = t('edgeCount',{count:renderer.edges.length.toLocaleString(state.language)});
+  if (state.selectedId) refreshAllocationPreview(model.nodes.get(state.selectedId));
   renderAllocatedList(); refreshSearch(false); persist();
 }
 function allocationGroups() {
@@ -428,8 +429,38 @@ async function selectMode(mode) {
   scene(); closeOverlay();
   return true;
 }
+function refreshAllocationPreview(n) {
+  const element = $('allocation-preview');
+  element.hidden = true;
+  if (!renderer || !n || !currentIds.has(n.id)) {
+    renderer?.update({ previewPath:new Set() });
+    return;
+  }
+  const model = activeTree(), selected = allocatedSet(), preview = new Set();
+  if (selected.has(n.id)) {
+    element.textContent = t('previewAllocated');
+    element.hidden = false;
+  } else if (nodeAllowed(n)) {
+    const route = n.isFreeAllocate ? [n.id] :
+      shortestAllocationPath(model, n.id, currentIds, selected, rootId(), nodeAllowed);
+    if (route === null) {
+      element.textContent = t('pathFail');
+      element.hidden = false;
+    } else {
+      const check = validateAllocationRoute(model, selected, route, ruleContext());
+      if (check.ok) {
+        for (const id of route) preview.add(id);
+        const addedPoints = countUsedPoints(model, check.allocated) - countUsedPoints(model, selected);
+        element.textContent = t('previewRoute', {nodes:route.length,points:addedPoints});
+      } else element.textContent = ruleMessage(check);
+      element.hidden = false;
+    }
+  }
+  renderer.update({ previewPath:preview });
+}
 function showDetail(n) {
   closeKeywordNote();
+  refreshAllocationPreview(n);
   $('details-placeholder').hidden = !!n;
   $('details-content').hidden = !n;
   if (!n) return;
