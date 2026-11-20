@@ -18,6 +18,9 @@ export function buildTree(raw) {
       id: Number(value.skill),
       x: group.x + Math.sin(a) * r,
       y: group.y - Math.cos(a) * r,
+      // Preserve the actual GGG group centre for exact circular connectors.
+      groupX: group.x,
+      groupY: group.y,
       stats: Array.isArray(value.stats) ? value.stats : [],
       hiddenOracle: value.unlockConstraint?.ascendancy === 'Oracle',
       category: value.isKeystone ? 'keystone' : value.isAscendancyStart || value.classesStart ? 'start' : value.isNotable ? 'notable' : value.isJewelSocket ? 'socket' : 'normal'

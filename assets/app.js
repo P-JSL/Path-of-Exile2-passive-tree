@@ -1,3 +1,4 @@
+import { importPobCode, resolvePobTree } from './pob-import.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
 import { buildExtraTree } from './extra-model.js';
@@ -10,6 +11,8 @@ const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
 const VALID_MODES = ['passive', 'ascendancy', 'atlas', 'genesis'];
 const KEY = 'exile-tree-plans-v1';
+const POB_SOURCE_KEY = 'exile-tree-pob2-source-v1';
+let importedPob = null;
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
@@ -42,6 +45,7 @@ async function loadTranslations() {
   const generated = responses[2].status === 'fulfilled' ? responses[2].value : {};
   // Existing verified game names win over fallback dictionaries.
   localeCatalog = { names: { ...(generated.names || {}), ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(generated.stats || {}), ...(base.stats || {}) }, nodes: generated.nodes || {} };
+  searchCache = null;
   if (responses.every(r => r.status === 'rejected')) console.warn('Korean language files were unavailable.', responses.map(r => r.reason));
   if (tree && renderer) {
     populateClasses(); populateAscendancies();
@@ -66,6 +70,7 @@ function updateDataSummary() {
 }
 const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {}, budgets: {} };
 let currentNodes = [], currentIds = new Set();
+let searchCache = null;
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
 function localName(item, mode = state.mode) {
@@ -155,6 +160,11 @@ function applyLanguageText() {
   if (tree) $('version-label').textContent = t('version');
   $('language-select').value = state.language;
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
+  const layout = document.querySelector('.workspace');
+  if (layout) {
+    $('toggle-filters').textContent = t(layout.classList.contains('filters-collapsed') ? 'showFilters' : 'hideFilters');
+    $('toggle-details').textContent = t(layout.classList.contains('details-collapsed') ? 'showDetails' : 'hideDetails');
+  }
   for (const node of document.querySelectorAll('[data-i18n-placeholder]')) node.placeholder = t(node.dataset.i18nPlaceholder);
   for (const node of document.querySelectorAll('[data-i18n-aria]')) node.setAttribute('aria-label', t(node.dataset.i18nAria));
 }
@@ -314,6 +324,7 @@ function scene() {
   const model = activeTree();
   currentNodes = isExtraMode() ? [...model.nodes.values()] : visibleNodes(tree, state.mode, state.ascendancy, state.showOracle);
   currentIds = new Set(currentNodes.map(n => n.id));
+  searchCache = null;
   if (state.selectedId && !currentIds.has(state.selectedId)) state.selectedId = null;
   applyLanguageText(); populateAscendancies(); updateHeader();
   const count = currentNodes.length;
@@ -323,7 +334,10 @@ function scene() {
     ? t('oracleStatus',{status:t(oracleUnlocked()?'oracleReady':'oracleLocked')})
     : t('sceneDefault');
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
-  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className) });
+  const importSpec = state.mode === 'passive' && importedPob?.build.className === state.className
+    ? importedPob.build.specs[importedPob.selectedIndex] : null;
+  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className),
+    weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []) });
   // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
   // Keep the entire world rendered and the existing Fit All control available.
   if (state.mode === 'passive' || state.mode === 'ascendancy') {
@@ -466,8 +480,14 @@ function refreshSearch(show = true) {
   const q = state.search.trim().toLocaleLowerCase();
   const results = $('search-results'); results.replaceChildren();
   const matches = new Set();
-  if (q) for (const n of currentNodes) {
-    if (n.name.toLocaleLowerCase().includes(q) || localName(n).toLocaleLowerCase().includes(q) || n.stats.some(s => s.toLocaleLowerCase().includes(q)) || localizedStats(n).some(s => s.toLocaleLowerCase().includes(q))) matches.add(n.id);
+  if (q) {
+    // Build the normalized search document once per scene/language instead of
+    // translating thousands of passives on every individual keystroke.
+    if (!searchCache) searchCache = currentNodes.map(n => ({
+      id:n.id,
+      text:[n.name, localName(n), ...n.stats, ...localizedStats(n)].join(' ').toLocaleLowerCase()
+    }));
+    for (const entry of searchCache) if (entry.text.includes(q)) matches.add(entry.id);
   }
   if (q && show) {
     for (const n of currentNodes.filter(n => matches.has(n.id)).slice(0, 30)) {
@@ -529,6 +549,148 @@ function showCopyFallback(url) {
   // Safari file:// and private-context fallback without clipboard permission.
   window.prompt(t('shareFallback'), url);
 }
+
+// PoB source is kept separately from editable allocations: the original export
+// cannot honestly claim to include changes made in this web planner.
+function addPobSection(container, title, blocks, empty = '') {
+  const section = document.createElement('details');
+  section.className = 'pob-section';
+  const heading = document.createElement('summary');
+  heading.textContent = title + ' (' + blocks.length + ')';
+  section.append(heading);
+  if (!blocks.length) {
+    const p = document.createElement('p'); p.textContent = empty;
+    section.append(p);
+  }
+  for (const [headingText, bodyText] of blocks) {
+    const group = document.createElement('div'); group.className = 'pob-entry';
+    const label = document.createElement('strong'); label.textContent = headingText;
+    const content = document.createElement('pre'); content.textContent = bodyText;
+    group.append(label, content); section.append(group);
+  }
+  container.append(section);
+}
+function renderPobOverview() {
+  const panel = $('pob-overview');
+  if (!importedPob || !tree) { panel.hidden = true; return; }
+  const { build, selectedIndex } = importedPob;
+  panel.hidden = false;
+  const spec = build.specs[selectedIndex];
+  const select = $('pob-spec-select');
+  const previous = select.value;
+  select.replaceChildren();
+  for (const [index, item] of build.specs.entries()) {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = (index + 1) + '. ' + (item.title || item.treeVersion || 'Tree');
+    select.append(option);
+  }
+  select.value = String(selectedIndex);
+  $('pob-meta').textContent = [build.className, build.ascendancyName, build.level ? 'Lv ' + build.level : '', 'Nodes ' + spec.nodeIds.length]
+    .filter(Boolean).join(' · ') + ' · W1 ' + spec.weaponSets[0].length + ' / W2 ' + spec.weaponSets[1].length;
+  const resolution = resolvePobTree(build, tree, selectedIndex);
+  const issues = [];
+  if (resolution.unknown.length) issues.push(t('pobMissing',{count:resolution.unknown.length}));
+  if (resolution.incompatible.length) issues.push(t('pobIncompatible',{count:resolution.incompatible.length}));
+  // The parser supports multiple historical PoB tree versions. Never silently
+  // imply that a mismatched snapshot recreates the same game state.
+  if (spec.treeVersion && spec.treeVersion !== tree.version)
+    issues.push(t('pobVersionWarning',{version:spec.treeVersion,local:tree.version}));
+  issues.push(t('pobReadOnly'));
+  $('pob-warning').textContent = issues.join('\n');
+  const groups = $('pob-summary-lists');
+  groups.replaceChildren();
+  addPobSection(groups, t('pobSkills'), build.skillSets.flatMap(set =>
+    set.groups.map((group, index) => [
+      (set.title || set.id || 'Set') + ' · ' + (group.label || group.slot || 'Group ' + (index + 1)),
+      group.gems.map(gem => (gem.enabled ? '' : '[OFF] ') + gem.name +
+        (gem.level ? ' Lv ' + gem.level : '') + (gem.quality ? ' Q ' + gem.quality : '')).join('\n')
+    ])), t('pobNoSkills'));
+  addPobSection(groups, t('pobItems'), build.itemSets.flatMap(set =>
+    set.slots.filter(slot => slot.text).map(slot => [
+      (set.title || set.id || 'Set') + ' · ' + slot.name, slot.text
+    ])), t('pobNoGear'));
+  addPobSection(groups, t('pobJewels'), spec.sockets.filter(socket => socket.text).map(socket =>
+    ['ID ' + socket.nodeId, socket.text]), t('pobNoJewels'));
+  addPobSection(groups, t('pobConfig'), build.configSets.flatMap(set =>
+    set.inputs.map(input => [
+      (set.title || set.id || 'Set') + ' · ' + (input.name || 'Input'),
+      Object.entries(input).filter(([key]) => key !== 'name').map(([key,value]) => key + ': ' + value).join(', ')
+    ])), t('pobNoConfig'));
+  addPobSection(groups, t('pobStats'), build.stats.map(stat => [stat.name, stat.value]));
+  if (build.notes) addPobSection(groups, t('pobNotes'), [[t('pobNotes'), build.notes]]);
+}
+function applyImportedPobSelection(index, requireConfirmation = true) {
+  if (!importedPob || !tree) return false;
+  const target = resolvePobTree(importedPob.build, tree, index);
+  if (target.spec.nodeIds.length && !target.ordinary.length && !target.specialized.length)
+    throw new Error('현재 트리 데이터와 일치하는 배분 노드가 없습니다. 다른 패치 버전의 PoB 코드일 수 있습니다.');
+  const existing = state.allocations[target.className] || [];
+  const priorAsc = target.ascendancy ? (state.ascAllocations[target.ascendancy] || []) : [];
+  if (requireConfirmation && (existing.length || priorAsc.length) && !confirm(t('pobConfirm'))) return false;
+  state.className = target.className;
+  state.ascendancy = target.ascendancy ||
+    tree.ascendancies.find(a => a.className === target.className)?.name || '';
+  state.mode = 'passive';
+  state.selectedId = null;
+  state.search = '';
+  $('search-input').value = '';
+  state.allocations[state.className] = target.ordinary;
+  if (target.ascendancy) state.ascAllocations[target.ascendancy] = target.specialized;
+  state.attributeChoices[state.className] = Object.fromEntries(
+    Object.entries(target.spec.attributeChoices).filter(([id]) => target.ordinary.includes(Number(id))));
+  importedPob.selectedIndex = index;
+  searchCache = null;
+  persist();
+  populateClasses(); scene(); renderPobOverview();
+  $('pob-import-result').textContent = t('pobImported');
+  return true;
+}
+async function importPobFromInput() {
+  const button = $('pob-import'), result = $('pob-import-result');
+  const source = $('pob-code').value.trim();
+  button.disabled = true;
+  result.textContent = '';
+  try {
+    const data = await importPobCode(source);
+    const previous = importedPob;
+    importedPob = {build:data, selectedIndex:data.activeIndex, source};
+    try {
+      if (!applyImportedPobSelection(data.activeIndex, true)) {
+        importedPob = previous;
+        renderPobOverview();
+        return;
+      }
+    } catch(error) {
+      importedPob = previous;
+      renderPobOverview();
+      throw error;
+    }
+    try { localStorage.setItem(POB_SOURCE_KEY, JSON.stringify({source, selectedIndex:data.activeIndex})); }
+    catch { result.textContent = t('pobImported') + ' · Local storage unavailable'; }
+    $('pob-code').value = '';
+    if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
+  } catch (error) {
+    result.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+async function restorePobSource() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(POB_SOURCE_KEY) || 'null');
+    if (!saved?.source || !tree) return;
+    const data = await importPobCode(saved.source);
+    importedPob = {build:data,source:saved.source,
+      selectedIndex:Number.isInteger(saved.selectedIndex) && data.specs[saved.selectedIndex]
+        ? saved.selectedIndex : data.activeIndex};
+    renderPobOverview();
+    if (state.mode === 'passive' && state.className === data.className) scene();
+  } catch(error) {
+    console.warn('Saved PoB source cannot be restored:', error);
+  }
+}
+
 function openOverlay(which) {
   const sidebar = which === 'sidebar', details = which === 'details';
   $('sidebar').classList.toggle('open', sidebar);
@@ -536,10 +698,21 @@ function openOverlay(which) {
   $('scrim').hidden = !(sidebar || details);
 }
 function closeOverlay() { openOverlay('none'); }
+function toggleDesktopPanel(side) {
+  const workspace = document.querySelector('.workspace');
+  const filters = side === 'filters';
+  const className = filters ? 'filters-collapsed' : 'details-collapsed';
+  const collapsed = workspace.classList.toggle(className);
+  const button = $(filters ? 'toggle-filters' : 'toggle-details');
+  button.textContent = t(filters ? (collapsed ? 'showFilters' : 'hideFilters') :
+    (collapsed ? 'showDetails' : 'hideDetails'));
+  button.setAttribute('aria-expanded', String(!collapsed));
+  // ResizeObserver will recalculate the canvas backing store exactly once.
+}
 function wireUI() {
   $('language-select').addEventListener('change', e => {
     if (!SUPPORTED_LANGUAGES.includes(e.target.value)) return;
-    state.language = e.target.value; applyLanguageText();
+    state.language = e.target.value; searchCache = null; applyLanguageText();
     if (tree && renderer) {
       populateClasses(); updateHeader();
       $('scene-count').textContent = t('nodeCount',{count:currentNodes.length.toLocaleString(state.language)});
@@ -549,6 +722,7 @@ function wireUI() {
       renderer.update({localizeName:localName});
       showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
       renderAllocatedList(); refreshSearch(); updateDataSummary();
+      renderPobOverview();
     }
     persist();
   });
@@ -577,13 +751,39 @@ function wireUI() {
     state.attributeChoices[state.className] ||= {};
     if (choice) state.attributeChoices[state.className][id] = choice;
     else delete state.attributeChoices[state.className][id];
-    persist(); showDetail(node); renderAllocatedList();
+    searchCache = null; persist(); showDetail(node); renderAllocatedList();
   });
   $('zoom-in').addEventListener('click', () => renderer.zoomBy(1.5));
   $('zoom-out').addEventListener('click', () => renderer.zoomBy(1 / 1.5));
   $('fit-all').addEventListener('click', () => renderer.fitAll());
   $('focus-start').addEventListener('click', focusStart);
   $('share-plan').addEventListener('click', sharePlan);
+  $('pob-import').addEventListener('click', () => { void importPobFromInput(); });
+  $('pob-spec-select').addEventListener('change', e => {
+    try {
+      if (!applyImportedPobSelection(Number(e.target.value))) e.target.value = String(importedPob.selectedIndex);
+      else {
+        const saved = JSON.parse(localStorage.getItem(POB_SOURCE_KEY) || 'null');
+        if (saved) { saved.selectedIndex = importedPob.selectedIndex; localStorage.setItem(POB_SOURCE_KEY, JSON.stringify(saved)); }
+      }
+    } catch (error) { $('pob-warning').textContent = error.message; e.target.value = String(importedPob.selectedIndex); }
+  });
+  $('pob-copy-source').addEventListener('click', () => {
+    if (!importedPob) return;
+    const code = importedPob.source;
+    if (navigator.clipboard && window.isSecureContext)
+      navigator.clipboard.writeText(code).then(() => toast(t('pobOriginalCopied')), () => showCopyFallback(code));
+    else showCopyFallback(code);
+  });
+  $('pob-delete').addEventListener('click', () => {
+    if (!importedPob || !confirm(t('pobDeleteConfirm'))) return;
+    importedPob = null;
+    try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
+    $('pob-import-result').textContent = '';
+    renderPobOverview();
+  });
+  $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
+  $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
   $('sidebar-toggle').addEventListener('click', () => openOverlay('sidebar'));
   $('sidebar-close').addEventListener('click', closeOverlay);
@@ -617,6 +817,7 @@ async function loadTree() {
     if (isExtraMode()) await extraPromise;
     if (!renderer) renderer = new TreeRenderer($('tree-canvas'), { onSelect: onNodeSelected });
     populateClasses(); scene(); updateDataSummary();
+    void restorePobSource();
     $('loading-overlay').hidden = true;
     // Translation loading is optional; render using the source data immediately.
     await localePromise;

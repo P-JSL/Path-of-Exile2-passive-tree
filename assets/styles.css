@@ -67,3 +67,52 @@
 .budget-control .helper{margin:9px 0;font-size:11px}
 .budget-usage{font-variant-numeric:tabular-nums;color:#94d5c6;font-size:12px;font-weight:700;margin:11px 0 0}
 .plan-audit{color:#e8c08a;background:#3b2b21;border-left:3px solid #c99f57;border-radius:5px;padding:10px;font-size:11px;line-height:1.6;margin:10px 0 0;overflow-wrap:anywhere}
+
+/* PoE.ninja-inspired map-first workspace. The game art and planner stay independent. */
+@media(min-width:851px){
+  .site-header{height:58px;padding-inline:18px;gap:16px}
+  .workspace{height:calc(100% - 58px);grid-template-columns:258px minmax(0,1fr) 272px}
+  .workspace.filters-collapsed{grid-template-columns:0 minmax(0,1fr) 272px}
+  .workspace.details-collapsed{grid-template-columns:258px minmax(0,1fr) 0}
+  .workspace.filters-collapsed.details-collapsed{grid-template-columns:0 minmax(0,1fr) 0}
+  .workspace.filters-collapsed>.sidebar,.workspace.details-collapsed>.details-panel{visibility:hidden;padding:0;border:0;overflow:hidden}
+  .stage-header{min-height:76px;padding:12px 18px;align-items:center}
+  .stage-header h1{font-size:21px}
+  .sidebar,.details-panel{padding:14px}
+  .control-group{padding-block:14px}
+}
+.stage-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.stage-tool{border:1px solid #3f4d5e;background:#182331;color:#d0dddf;padding:7px 10px;border-radius:5px;font-size:11px;white-space:nowrap;min-height:32px}
+.stage-tool:hover,.stage-tool:focus-visible{border-color:#b49a69;background:#28374a;color:#fff4da}
+@media(max-width:1150px) and (min-width:851px){
+  .workspace{grid-template-columns:232px minmax(0,1fr) 235px}
+  .workspace.filters-collapsed{grid-template-columns:0 minmax(0,1fr) 235px}
+  .workspace.details-collapsed{grid-template-columns:232px minmax(0,1fr) 0}
+}
+@media(max-width:850px){
+  .stage-tools .stage-tool{display:none}
+  .stage-tools{gap:4px}
+}
+
+
+/* PoB2 import is a read-only build viewer paired with editable passive allocations. */
+.pob-controls>label{display:block;font-size:11px;font-weight:700;color:#d6c6aa;margin:10px 0 7px}
+.pob-controls textarea{width:100%;min-height:92px;max-height:245px;resize:vertical;border:1px solid #425670;border-radius:8px;background:#0b1523;color:#e6e3da;padding:10px 12px;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.pob-controls textarea:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.pob-controls .wide-button{margin-top:10px}
+.pob-import-result{color:#b8dcbf;font-size:11px;line-height:1.6;overflow-wrap:anywhere;white-space:pre-line}
+.pob-overview{border:1px solid #526276;border-radius:10px;padding:14px 12px;margin:18px 0;background:#101c2b;min-width:0}
+.pob-overview-heading{display:flex;gap:10px;justify-content:space-between;align-items:baseline;color:#e8d1a2}
+.pob-overview-heading strong{font-size:13px}
+.pob-overview>label{display:block;margin:13px 0 7px;font-size:11px;color:#c7cbd0}
+.pob-overview select{width:100%;background:#1e3041;color:#f6e5c3;border:1px solid #65758c;border-radius:6px;padding:10px;min-height:40px}
+.pob-meta{font-size:11px;line-height:1.6;color:#aac7d3;overflow-wrap:anywhere}
+.pob-warning{color:#e8bb87;white-space:pre-line;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.pob-summary-lists{display:flex;flex-direction:column;gap:8px}
+.pob-section{border:1px solid #384a5b;border-radius:7px;background:#172434;overflow:hidden}
+.pob-section>summary{list-style-position:inside;padding:12px;color:#e6cf9d;font-size:12px;cursor:pointer;font-weight:700}
+.pob-section>p{padding:9px 12px;font-size:11px;color:#96a8b9}
+.pob-entry{padding:10px 12px;border-top:1px solid #36495a;min-width:0}
+.pob-entry>strong{display:block;font-size:11px;color:#d9e0e7;overflow-wrap:anywhere}
+.pob-entry pre{white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#a7bed0;margin:8px 0 0;max-height:270px;overflow:auto}
+@media(max-width:850px){.pob-overview{margin:12px 0}.pob-section>summary{min-height:44px;padding:13px 12px}.pob-entry pre{max-height:200px}}

@@ -50,6 +50,14 @@
           <label class="switch-line"><input id="oracle-toggle" type="checkbox" checked><span><span data-i18n="oracleToggle">보이지 않는 길 노드 표시</span></span></label>
           <p class="helper" data-i18n="oracleHint">오라클 전직에서 열리는 추가 패시브입니다. 배분하려면 전직 노드를 먼저 획득해야 합니다.</p>
         </section>
+        <section id="pob-controls" class="control-group pob-controls">
+          <div class="control-head"><span data-i18n="pobImportTitle">Path of Building 2 가져오기</span></div>
+          <label for="pob-code" data-i18n="pobCodeLabel">PoB2 공유 코드 또는 XML</label>
+          <textarea id="pob-code" rows="4" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-placeholder="pobPlaceholder" placeholder="PoB2 공유 코드를 붙여 넣으세요"></textarea>
+          <button id="pob-import" type="button" class="wide-button accent-button" data-i18n="pobImportButton">빌드 불러오기</button>
+          <p id="pob-import-result" class="pob-import-result" role="status" aria-live="polite"></p>
+          <p class="helper" data-i18n="pobImportHint">코드는 브라우저 안에서 분석합니다. 가져오면 현재 직업의 패시브 계획이 교체될 수 있습니다.</p>
+        </section>
         <section class="control-group plan-controls">
           <div class="control-head"><span><span data-i18n="planPoints">계획 포인트</span></span><button id="clear-plan" class="text-button"><span data-i18n="clear">초기화</span></button></div>
           <div class="points-grid"><div><strong id="normal-points">0</strong><span id="normal-points-label">일반</span></div><div><strong id="ascendancy-points">0</strong><span id="ascendancy-points-label">전직</span></div></div>
@@ -69,7 +77,11 @@
       <main class="stage" aria-label="패시브 트리 지도" data-i18n-aria="mainAria">
         <div class="stage-header">
           <div><div id="stage-eyebrow" class="eyebrow">FULL PASSIVE SKILL TREE</div><h1 id="stage-title">패시브 트리</h1><p id="stage-subtitle">노드를 누르면 효과를 볼 수 있습니다.</p></div>
-          <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
+          <div class="stage-tools">
+            <button type="button" id="toggle-filters" class="stage-tool" aria-controls="sidebar" aria-expanded="true" data-i18n="hideFilters">필터 접기</button>
+            <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
+            <button type="button" id="toggle-details" class="stage-tool" aria-controls="details-panel" aria-expanded="true" data-i18n="hideDetails">정보 접기</button>
+          </div>
         </div>
         <div id="canvas-wrap" class="canvas-wrap">
           <canvas id="tree-canvas" aria-label="패시브 트리 지도. 손가락으로 이동하고 두 손가락으로 확대할 수 있습니다." data-i18n-aria="canvasAria"></canvas>
@@ -86,6 +98,15 @@
         <div class="details-title"><span data-i18n="detailHeader">패시브 정보</span><button id="details-close" class="icon-button mobile-only" aria-label="detailClose" data-i18n-aria="detailClose">✕</button></div>
         <div id="details-placeholder" class="details-placeholder"><div class="placeholder-glyph">◇</div><strong><span data-i18n="detailEmpty">패시브를 선택하세요</span></strong><p data-i18n="detailHelp">맵의 노드를 누르면 효과, 종류 및 연결 경로를 확인할 수 있습니다.</p></div>
         <div id="details-content" hidden><span id="detail-type" class="detail-type"><span data-i18n="tabPassive">일반 패시브</span></span><h2 id="detail-name"></h2><div id="detail-stats" class="detail-stats"></div><section id="keyword-note" class="keyword-note" role="region" aria-labelledby="keyword-note-title" hidden><div class="keyword-note-head"><span class="keyword-note-category" data-i18n="keywordNoteHeading">용어 설명</span><button id="keyword-note-close" type="button" class="keyword-note-close" data-i18n-aria="keywordClose" aria-label="설명 닫기">×</button></div><strong id="keyword-note-title" class="keyword-note-title"></strong><p id="keyword-note-body" class="keyword-note-body"></p><p id="keyword-note-context" class="keyword-note-context"></p><a id="keyword-note-source" href="https://poe2db.tw/kr/Keywords" target="_blank" rel="noopener noreferrer" data-i18n="keywordReference">PoE2DB 용어집에서 더 보기</a></section><div id="attribute-control" class="attribute-control" hidden><label for="attribute-select" data-i18n="attributeSelect">능력치 선택</label><select id="attribute-select" aria-label="능력치 선택"><option value="" data-i18n="attributeUnset">능력치 미선택</option><option value="str" data-i18n="attributeStrength">힘</option><option value="dex" data-i18n="attributeDexterity">민첩</option><option value="int" data-i18n="attributeIntelligence">지능</option></select><p id="attribute-hint" class="helper" data-i18n="attributeHint">포인트를 배분한 후 능력치를 선택할 수 있습니다.</p></div><div id="detail-notice" class="detail-notice" hidden></div><div class="detail-meta"><span><span data-i18n="passiveId">패시브 ID</span></span><code id="detail-id"></code></div><button id="allocate-button" class="wide-button accent-button">경로를 따라 배분</button><p id="allocation-message" class="helper"></p></div>
+        <section id="pob-overview" class="pob-overview" hidden>
+          <div class="pob-overview-heading"><strong data-i18n="pobOverviewTitle">가져온 PoB2 빌드</strong><button type="button" id="pob-delete" class="text-button" data-i18n="pobRemove">원본 삭제</button></div>
+          <p id="pob-meta" class="pob-meta"></p>
+          <label for="pob-spec-select" data-i18n="pobSpecLabel">패시브 트리 구성</label>
+          <select id="pob-spec-select" aria-label="패시브 트리 구성"></select>
+          <button id="pob-copy-source" class="wide-button" type="button" data-i18n="pobCopySource">원본 PoB2 코드 복사</button>
+          <p id="pob-warning" class="pob-warning"></p>
+          <div id="pob-summary-lists" class="pob-summary-lists"></div>
+        </section>
         <section id="allocated-panel" class="allocated-panel" aria-live="off">
           <div class="allocated-head">
             <strong data-i18n="allocatedHeader">사용한 패시브 노드</strong>
