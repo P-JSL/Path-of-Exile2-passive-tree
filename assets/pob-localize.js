@@ -21,6 +21,8 @@ const fields={
   'Chaos Resistance':'카오스 저항','all Elemental Resistances':'모든 원소 저항',
   'All Elemental Resistances':'모든 원소 저항',
   'Spell Damage':'주문 피해','Attack Damage':'공격 피해',
+  'Fire Damage':'화염 피해','Cold Damage':'냉기 피해',
+  'Lightning Damage':'번개 피해','Chaos Damage':'카오스 피해',
   'Elemental Damage with Attacks':'공격 시 원소 피해',
   'Damage':'피해','Movement Speed':'이동 속도','Cast Speed':'시전 속도',
   'Attack Speed':'공격 속도','Critical Strike Multiplier':'치명타 피해 배율',
