@@ -116,7 +116,10 @@
               <h2 id="pob-profile-name"></h2>
               <p id="pob-profile-version"></p>
             </div>
-            <button type="button" id="pob-back-tree" class="stage-tool" data-i18n="pobBackTree">패시브 트리로 돌아가기</button>
+            <div class="pob-profile-actions">
+              <button type="button" id="pob-profile-reset" class="stage-tool pob-reset-button" data-i18n="pobResetButton">불러온 빌드 초기화</button>
+              <button type="button" id="pob-back-tree" class="stage-tool" data-i18n="pobBackTree">패시브 트리로 돌아가기</button>
+            </div>
           </div>
           <div class="pob-profile-set-controls">
             <label><span data-i18n="pobProfileGearSetLabel">장비 구성</span>
@@ -173,7 +176,12 @@
         <div id="details-placeholder" class="details-placeholder"><div class="placeholder-glyph">◇</div><strong><span data-i18n="detailEmpty">패시브를 선택하세요</span></strong><p data-i18n="detailHelp">맵의 노드를 누르면 효과, 종류 및 연결 경로를 확인할 수 있습니다.</p></div>
         <div id="details-content" hidden><span id="detail-type" class="detail-type"><span data-i18n="tabPassive">일반 패시브</span></span><h2 id="detail-name"></h2><p id="stat-source-notice" class="stat-source-notice" role="note" hidden></p><div id="detail-stats" class="detail-stats"></div><section id="pob-jewel-detail" class="pob-jewel-detail" hidden><strong data-i18n="pobSocketedJewelDetail">PoB 원본 장착 주얼</strong><pre id="pob-jewel-text"></pre></section><section id="keyword-note" class="keyword-note" role="region" aria-labelledby="keyword-note-title" hidden><div class="keyword-note-head"><span class="keyword-note-category" data-i18n="keywordNoteHeading">용어 설명</span><button id="keyword-note-close" type="button" class="keyword-note-close" data-i18n-aria="keywordClose" aria-label="설명 닫기">×</button></div><strong id="keyword-note-title" class="keyword-note-title"></strong><p id="keyword-note-body" class="keyword-note-body"></p><p id="keyword-note-context" class="keyword-note-context"></p><a id="keyword-note-source" href="https://poe2db.tw/kr/Keywords" target="_blank" rel="noopener noreferrer" data-i18n="keywordReference">PoE2DB 용어집에서 더 보기</a></section><div id="attribute-control" class="attribute-control" hidden><label for="attribute-select" data-i18n="attributeSelect">능력치 선택</label><select id="attribute-select" aria-label="능력치 선택"><option value="" data-i18n="attributeUnset">능력치 미선택</option><option value="str" data-i18n="attributeStrength">힘</option><option value="dex" data-i18n="attributeDexterity">민첩</option><option value="int" data-i18n="attributeIntelligence">지능</option></select><p id="attribute-hint" class="helper" data-i18n="attributeHint">포인트를 배분한 후 능력치를 선택할 수 있습니다.</p></div><div id="detail-notice" class="detail-notice" hidden></div><div class="detail-meta"><span><span data-i18n="passiveId">패시브 ID</span></span><code id="detail-id"></code></div><p id="allocation-preview" class="allocation-preview" role="status" hidden></p><button id="allocate-button" class="wide-button accent-button">경로를 따라 배분</button><p id="allocation-message" class="helper"></p></div>
         <section id="pob-overview" class="pob-overview" hidden>
-          <div class="pob-overview-heading"><strong data-i18n="pobOverviewTitle">가져온 PoB2 빌드</strong><button type="button" id="pob-delete" class="text-button" data-i18n="pobRemove">원본 삭제</button></div>
+          <div class="pob-overview-heading"><strong data-i18n="pobOverviewTitle">가져온 PoB2 빌드</strong>
+              <div class="pob-overview-actions">
+                <button type="button" id="pob-reset" class="text-button pob-reset-button" data-i18n="pobResetButton">불러온 빌드 초기화</button>
+                <button type="button" id="pob-delete" class="text-button" data-i18n="pobRemove">원본 삭제</button>
+              </div>
+            </div>
           <p id="pob-meta" class="pob-meta"></p>
           <label for="pob-spec-select" data-i18n="pobSpecLabel">패시브 트리 구성</label>
           <select id="pob-spec-select" aria-label="패시브 트리 구성"></select>

@@ -314,3 +314,17 @@ font-size:10px;line-height:1.55;overflow-wrap:anywhere}
 .pob-stat-raw[open]>summary:before{content:'▾'}
 .pob-stat-raw>code{display:block;margin-top:5px;overflow-wrap:anywhere;
   font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:#deccab}
+
+/* Separate destructive full-reset action from source-only deletion. */
+.pob-profile-actions,.pob-overview-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.pob-profile-actions{justify-content:flex-end}
+.pob-reset-button{color:#edb4a7;border-color:#a26b65}
+.pob-reset-button:hover,.pob-reset-button:focus-visible{color:#ffe3dc;border-color:#cf9990}
+.pob-overview-actions .text-button{min-height:34px;padding:7px 9px}
+@media(max-width:850px){
+  .pob-profile-actions{width:100%;justify-content:stretch}
+  .pob-profile-actions button{flex:1 1 140px;white-space:normal}
+  .pob-overview-heading{align-items:flex-start;flex-wrap:wrap}
+  .pob-overview-actions{width:100%;justify-content:flex-start}
+  .pob-overview-actions button{min-height:42px}
+}

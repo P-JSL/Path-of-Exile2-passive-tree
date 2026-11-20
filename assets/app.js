@@ -1,4 +1,5 @@
 import { importPobCode, resolvePobTree } from './pob-import.js';
+import { recordPobAppliedScope, clearImportedPobPlans, safeImportedPobScopes } from './pob-reset.js';
 import { renderPobProfile } from './pob-profile.js';
 import {localizePobName,localizePobSlot,localizePobMetric,localizePobItemText,localizePobGem,formatPobValue} from './pob-localize.js';
 import { partitionPobWeaponSets } from './weapon-sets.js';
@@ -918,6 +919,9 @@ function applyImportedPobSelection(index, requireConfirmation = true) {
   if (target.ascendancy) state.ascAllocations[target.ascendancy] = target.specialized;
   state.attributeChoices[state.className] = Object.fromEntries(
     Object.entries(target.spec.attributeChoices).filter(([id]) => target.ordinary.includes(Number(id))));
+  // Track every original class/ascendancy whose plan this import overwrote.
+  // Switching between source specifications can affect different ascendancies.
+  importedPob.appliedScopes = recordPobAppliedScope(importedPob.appliedScopes, target);
   importedPob.selectedIndex = index;
   searchCache = null;
   persist();
@@ -933,7 +937,8 @@ async function importPobFromInput() {
   try {
     const data = await importPobCode(source);
     const previous = importedPob;
-    importedPob = {build:data, selectedIndex:data.activeIndex, source};
+    importedPob = {build:data, selectedIndex:data.activeIndex, source,
+      appliedScopes:{classes:[],ascendancies:[]}};
     try {
       if (!applyImportedPobSelection(data.activeIndex, true)) {
         importedPob = previous;
@@ -945,7 +950,9 @@ async function importPobFromInput() {
       renderPobOverview();
       throw error;
     }
-    try { localStorage.setItem(POB_SOURCE_KEY, JSON.stringify({source, selectedIndex:data.activeIndex})); }
+    try { localStorage.setItem(POB_SOURCE_KEY, JSON.stringify({
+      source, selectedIndex:data.activeIndex, appliedScopes:importedPob.appliedScopes
+    })); }
     catch { result.textContent = t('pobImported') + ' · Local storage unavailable'; }
     $('pob-code').value = '';
     closeOverlay();
@@ -961,15 +968,60 @@ async function restorePobSource() {
     const saved = JSON.parse(localStorage.getItem(POB_SOURCE_KEY) || 'null');
     if (!saved?.source || !tree) return;
     const data = await importPobCode(saved.source);
-    importedPob = {build:data,source:saved.source,
-      selectedIndex:Number.isInteger(saved.selectedIndex) && data.specs[saved.selectedIndex]
-        ? saved.selectedIndex : data.activeIndex};
+    const index=Number.isInteger(saved.selectedIndex) && data.specs[saved.selectedIndex]
+      ? saved.selectedIndex : data.activeIndex;
+    const target=resolvePobTree(data,tree,index);
+    const eligible=tree.ascendancies.filter(a=>a.className===target.className).map(a=>a.name);
+    importedPob = {build:data,source:saved.source,selectedIndex:index,
+      appliedScopes:safeImportedPobScopes(saved.appliedScopes,target.className,eligible,target.ascendancy)};
     renderPobOverview();
     if (state.mode === 'passive' && state.className === data.className) scene();
     setPobBuildView(false);
   } catch(error) {
     console.warn('Saved PoB source cannot be restored:', error);
   }
+}
+
+/** Remove the saved original but leave all editable passive plans untouched. */
+function discardImportedPobSource() {
+  importedPob = null;
+  pobWeaponView = 'all';
+  pobProfileBuild = null;
+  pobProfileItemSet = '';
+  pobProfileSkillSet = '';
+  renderer?.update({allocated:allocatedSet(),weaponSet1:new Set(),weaponSet2:new Set(),
+    socketedJewelIds:new Set(),previewPath:new Set()});
+  updateWeaponSetControls();
+  setPobBuildView(false);
+  try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
+  $('pob-import-result').textContent = '';
+  renderPobOverview();
+  // Imported socket texts must disappear from the selected node detail.
+  showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
+}
+/**
+ * Explicit complete reset: clear only plans that the current PoB source
+ * replaced. Other classes, other ascendancies, Atlas, Genesis and budgets
+ * remain untouched. Subsequent manual edits in those imported scopes will
+ * also be cleared; the confirmation text says so before changing anything.
+ */
+function resetImportedBuild() {
+  if (!importedPob || !tree || !confirm(t('pobResetConfirm'))) return;
+  const target=resolvePobTree(importedPob.build,tree,importedPob.selectedIndex);
+  const eligible=tree.ascendancies.filter(a=>a.className===target.className).map(a=>a.name);
+  const scopes=safeImportedPobScopes(importedPob.appliedScopes,
+    target.className,eligible,target.ascendancy);
+  const cleared=clearImportedPobPlans(state,scopes);
+  state.allocations=cleared.allocations;
+  state.ascAllocations=cleared.ascAllocations;
+  state.attributeChoices=cleared.attributeChoices;
+  state.selectedId=null;
+  persist();
+  discardImportedPobSource();
+  $('pob-code').value='';
+  scene(); // Recalculate the current map and allocation audit; keep its camera.
+  closeOverlay();
+  toast(t('pobResetSuccess'));
 }
 
 function openOverlay(which) {
@@ -1087,7 +1139,11 @@ function wireUI() {
       if (!applyImportedPobSelection(Number(e.target.value))) e.target.value = String(importedPob.selectedIndex);
       else {
         const saved = JSON.parse(localStorage.getItem(POB_SOURCE_KEY) || 'null');
-        if (saved) { saved.selectedIndex = importedPob.selectedIndex; localStorage.setItem(POB_SOURCE_KEY, JSON.stringify(saved)); }
+        if (saved) {
+          saved.selectedIndex = importedPob.selectedIndex;
+          saved.appliedScopes = importedPob.appliedScopes;
+          localStorage.setItem(POB_SOURCE_KEY, JSON.stringify(saved));
+        }
       }
     } catch (error) { $('pob-warning').textContent = error.message; e.target.value = String(importedPob.selectedIndex); }
   });
@@ -1100,18 +1156,10 @@ function wireUI() {
   });
   $('pob-delete').addEventListener('click', () => {
     if (!importedPob || !confirm(t('pobDeleteConfirm'))) return;
-    importedPob = null;
-    pobWeaponView = 'all';
-    renderer?.update({allocated:allocatedSet(),weaponSet1:new Set(),weaponSet2:new Set(),socketedJewelIds:new Set()});
-    updateWeaponSetControls();
-    setPobBuildView(false);
-    try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
-    $('pob-import-result').textContent = '';
-    renderPobOverview();
-    // The original source may have supplied the selected socket's jewel text.
-    // Refresh the still-selected node so deleted PoB data is not left visible.
-    showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
+    discardImportedPobSource();
   });
+  $('pob-reset').addEventListener('click', resetImportedBuild);
+  $('pob-profile-reset').addEventListener('click', resetImportedBuild);
   $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
   $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
