@@ -18,7 +18,7 @@ export function profileSnapshot(build, specIndex = build.activeIndex) {
   const skillSet = build.skillSets.find(set => set.id === build.activeSkillSet) || build.skillSets[0];
   return {
     spec, itemSet, skillSet,
-    equipment:(itemSet?.slots || []).filter(slot => slot.text).map(slot =>
+    equipment:(itemSet?.slots || []).map(slot =>
       ({...slot,...summarizePobItem(slot.text)})),
     skillGroups:(skillSet?.groups || []).filter(group => group.gems.length),
     jewels:spec.sockets.filter(socket => socket.text),
@@ -54,12 +54,13 @@ export function renderPobProfile(build, specIndex, language = 'ko') {
   const itemFragment = document.createDocumentFragment();
   for (const slot of equipment) {
     const tile = element('div','pob-equipment-tile rarity-' + slot.rarity);
+    if (!slot.text) tile.classList.add('empty');
     const position = (slot.name || '').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-$/,'');
     if (/^(body-armour|helmet|gloves|boots|weapon-1|weapon-2)$/.test(position))
       tile.classList.add('slot-' + position);
     tile.title = slot.raw;
     tile.append(element('small','',slot.name),
-      element('strong','',slot.title || slot.name),
+      element('strong','',slot.title || (slot.text ? slot.name : (language === 'ko' ? '비어 있음' : 'Empty'))),
       element('p','',slot.description));
     itemFragment.append(tile);
   }
