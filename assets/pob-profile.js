@@ -93,6 +93,15 @@ export function renderPobProfile(build, specIndex, language = 'ko', selected = {
     const number=element('strong','',formatPobValue(stat.value,language));
     number.title=stat.value;
     card.append(caption,number);
+    // Full source precision is kept available by tap, not hover-only.
+    if (/^[+-]?\d+\.\d{3,}$/.test(String(stat.value))) {
+      const raw=element('details','pob-stat-raw');
+      raw.append(
+        element('summary','',language==='ko'?'원본 수치':'Original value'),
+        element('code','',stat.value)
+      );
+      card.append(raw);
+    }
     statsFragment.append(card);
   }
   if (!stats.length) statsFragment.append(element('p','pob-profile-empty',
