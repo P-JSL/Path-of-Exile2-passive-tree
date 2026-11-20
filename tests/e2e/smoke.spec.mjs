@@ -59,7 +59,8 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
   expect(first).not.toBe(second);
 
   await search.fill('Jewel Socket');
-  await expect(fireResults.first()).toBeVisible();
+  await expect.poll(async () => fireResults.first().getAttribute('data-node-id'))
+    .not.toBe(String(first));
   const socketId = Number(await fireResults.first().getAttribute('data-node-id'));
   expect(socketId).not.toBe(first);
   expect(socketId).not.toBe(second);
@@ -71,6 +72,8 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
     </Spec></Tree><Items><Item id="1">Rarity: Rare\\nIntegration Jewel\\n+12 to Life</Item></Items>
     </PathOfBuilding2>`;
 
+  // Prevent search results from obscuring the import form (especially on phones).
+  await page.locator('#search-clear').click();
   await page.locator('.side-fold').filter({has:page.locator('#pob-code')}).locator('summary').click();
   await page.locator('#pob-code').fill(xml);
   await page.locator('#pob-import').click();
