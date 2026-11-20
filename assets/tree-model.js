@@ -1,3 +1,5 @@
+import { minimumPointAllocationPath } from './minimum-point-path.js';
+
 /** Game tree adapter. Keeps the official node IDs, text and positions unchanged. */
 export function buildTree(raw) {
   if (!raw || !raw.nodes || !raw.groups || !raw.constants || !Array.isArray(raw.classes)) {
@@ -67,39 +69,11 @@ export function getBounds(nodes, padding = 300) {
   return { minX: minX - padding, maxX: maxX + padding, minY: minY - padding, maxY: maxY + padding };
 }
 
-/** Find a shortest connected path through eligible nodes. Does not forge implicit edges. */
+/** Find the graph-connected route that spends the fewest new passive points.
+ * Preserve the established public signature for the existing planner and tests.
+ */
 export function shortestAllocationPath(tree, target, sceneIds, allocated, rootId, isAllowed = () => true) {
-  const roots = Array.isArray(rootId) ? rootId : [rootId];
-  if (!sceneIds.has(target) || !roots.some(id => sceneIds.has(id))) return null;
-  if (roots.includes(target)) return [];
-  // Imported plans may contain disconnected nodes. Only allocations reachable
-  // from the actual class start can extend new paths, preventing teleportation.
-  const connected = new Set(roots.filter(id => sceneIds.has(id)));
-  const connectedQueue = [...connected];
-  for (let index = 0; index < connectedQueue.length; index++) {
-    const id = connectedQueue[index];
-    for (const next of tree.adjacent.get(id) ?? []) {
-      if (!connected.has(next) && sceneIds.has(next) && allocated.has(next)) {
-        connected.add(next); connectedQueue.push(next);
-      }
-    }
-  }
-  const sources = [...connected];
-  const queue = [], seen = new Set(), parent = new Map();
-  for (const id of sources) if (!seen.has(id)) { seen.add(id); queue.push(id); }
-  for (let index = 0; index < queue.length; index++) {
-    const id = queue[index];
-    if (id === target) break;
-    for (const next of tree.adjacent.get(id) ?? []) {
-      if (!sceneIds.has(next) || seen.has(next) || !isAllowed(tree.nodes.get(next))) continue;
-      seen.add(next); parent.set(next, id); queue.push(next);
-    }
-  }
-  if (!seen.has(target)) return null;
-  const result = [];
-  let step = target;
-  while (!sources.includes(step)) { result.push(step); step = parent.get(step); if (step === undefined) return null; }
-  return result.reverse().filter(id => !allocated.has(id));
+  return minimumPointAllocationPath(tree, target, sceneIds, allocated, rootId, isAllowed);
 }
 
 /** Discard orphaned allocations after a node is refunded. */
