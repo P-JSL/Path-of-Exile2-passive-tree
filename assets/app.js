@@ -4,6 +4,7 @@ import { buildExtraTree } from './extra-model.js';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, tr, passiveName, passiveStat } from './i18n.js';
 import { ATTRIBUTES, isAnyAttributeNode, selectedAttributeStat, validAttributeChoices, encodeAttributeChoices, decodeAttributeChoices } from './attributes.js';
 import { parseSkillKeywords, verifiedSkillMarkup, lookupKeyword, builtInKeywordDescription } from './skill-notes.js';
+import { validateAllocationRoute, auditAllocations, countUsedPoints } from './allocation-rules.js';
 
 const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
@@ -63,7 +64,7 @@ function updateDataSummary() {
   const format = x => Number(x || 0).toLocaleString(state.language);
   $('data-summary').textContent = t('summary', { nodes: format(tree.nodes.size), asc: tree.ascendancies.length, atlas: format(extraTrees.atlas?.nodes.size), genesis: format(extraTrees.genesis?.nodes.size) });
 }
-const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {} };
+const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {}, budgets: {} };
 let currentNodes = [], currentIds = new Set();
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
@@ -170,6 +171,12 @@ function loadSaved() {
       state.ascAllocations = validAllocationRecord(saved.ascAllocations);
       state.extraAllocations = validAllocationRecord(saved.extraAllocations);
       state.attributeChoices = validAttributeChoices(saved.attributeChoices);
+      if (saved.budgets && typeof saved.budgets === 'object' && !Array.isArray(saved.budgets)) {
+        for (const mode of VALID_MODES) {
+          const value = saved.budgets[mode];
+          if (Number.isSafeInteger(value) && value >= 0 && value <= 999) state.budgets[mode] = value;
+        }
+      }
       if (saved.className && typeof saved.className === 'string') state.className = saved.className;
       if (saved.ascendancy && typeof saved.ascendancy === 'string') state.ascendancy = saved.ascendancy;
       if (VALID_MODES.includes(saved.mode)) state.mode = saved.mode;
@@ -199,7 +206,7 @@ function validAllocationRecord(input) {
   return out;
 }
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify({ className: state.className, ascendancy: state.ascendancy, mode: state.mode, showOracle: state.showOracle, language: state.language, allocations: state.allocations, ascAllocations: state.ascAllocations, extraAllocations: state.extraAllocations, attributeChoices: state.attributeChoices })); } catch { /* no-op */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ className: state.className, ascendancy: state.ascendancy, mode: state.mode, showOracle: state.showOracle, language: state.language, allocations: state.allocations, ascAllocations: state.ascAllocations, extraAllocations: state.extraAllocations, attributeChoices: state.attributeChoices, budgets: state.budgets })); } catch { /* no-op */ }
 }
 function isExtraMode() { return state.mode === 'atlas' || state.mode === 'genesis'; }
 function activeTree() { return isExtraMode() ? extraTrees[state.mode] : tree; }
@@ -213,12 +220,46 @@ function allocatedSet() {
   const key = state.mode === 'passive' ? state.className : state.mode === 'ascendancy' ? state.ascendancy : state.mode;
   return new Set(record[key] || []);
 }
+function ruleContext() {
+  return {
+    mode:state.mode, className:state.className, ascendancy:state.ascendancy,
+    roots:rootIds(), visibleIds:currentIds, ascendancyAllocated:state.ascAllocations,
+    maxPoints:state.budgets[state.mode]
+  };
+}
+function ruleMessage(outcome) {
+  const key = {
+    unavailable:'ruleUnavailable',unallocatable:'ruleUnallocatable',
+    otherAscendancy:'ruleOtherAscendancy',locked:'ruleLocked',
+    prerequisite:'rulePrerequisite',exclusiveChoice:'ruleExclusiveChoice',
+    pointBudget:'rulePointBudget'
+  }[outcome.reason] || 'prerequisite';
+  return t(key, {id:outcome.requiredId,used:outcome.used,max:outcome.max});
+}
+function refreshBudgetAudit() {
+  const model = activeTree();
+  if (!model) return;
+  const budget = state.budgets[state.mode];
+  $('point-budget').value = Number.isSafeInteger(budget) ? String(budget) : '';
+  const used = countUsedPoints(model, allocatedSet());
+  $('budget-usage').textContent = Number.isSafeInteger(budget)
+    ? t('budgetUsage',{used,max:budget}) : t('budgetNoLimit',{used});
+  const findings = auditAllocations(model,allocatedSet(),ruleContext());
+  const notice = $('plan-audit');
+  notice.hidden = !findings.length;
+  if (findings.length) {
+    notice.textContent = t('budgetIssues',{
+      count:findings.length,reason:ruleMessage(findings[0])
+    });
+  }
+}
 function updatePoints() {
   const extra = isExtraMode();
   $('normal-points').textContent = extra ? allocatedSet().size : (state.allocations[state.className] || []).length;
   $('ascendancy-points').textContent = extra ? '-' : (state.ascAllocations[state.ascendancy] || []).length;
   $('normal-points-label').textContent = extra ? t(state.mode === 'atlas' ? 'tabAtlas' : 'tabGenesis') : t('normal');
   $('ascendancy-points-label').textContent = extra ? t('independent') : t('ascPoints');
+  refreshBudgetAudit();
 }
 function saveAllocated(set) {
   const record = state.mode === 'passive' ? state.allocations : state.mode === 'ascendancy' ? state.ascAllocations : state.extraAllocations;
@@ -446,8 +487,9 @@ function toggleAllocation() {
   } else {
     const route = shortestAllocationPath(model, id, currentIds, set, root, nodeAllowed);
     if (route === null) { toast(t('pathFail')); return; }
-    for (const step of route) set.add(step);
-    saveAllocated(set);
+    const check = validateAllocationRoute(model, set, route, ruleContext());
+    if (!check.ok) { toast(ruleMessage(check)); return; }
+    saveAllocated(check.allocated);
     toast(t('allocSuccess',{count:route.length}));
   }
   renderer.update({ allocated: allocatedSet(), lockedOracle: !oracleUnlocked() });
@@ -509,6 +551,16 @@ function wireUI() {
   $('search-input').addEventListener('input', e => { state.search = e.target.value; refreshSearch(); });
   $('search-clear').addEventListener('click', () => { $('search-input').value = ''; state.search = ''; refreshSearch(); });
   $('allocate-button').addEventListener('click', toggleAllocation);
+  $('point-budget').addEventListener('change', e => {
+    const value = e.target.value.trim();
+    if (value === '') delete state.budgets[state.mode];
+    else if (/^\\d+$/.test(value)) {
+      const amount = Number(value);
+      if (!Number.isSafeInteger(amount) || amount > 999) { refreshBudgetAudit(); return; }
+      state.budgets[state.mode] = amount;
+    } else { refreshBudgetAudit(); return; }
+    persist(); refreshBudgetAudit();
+  });
   $('attribute-select').addEventListener('change', e => {
     const id = state.selectedId, node = activeTree()?.nodes.get(id);
     if (state.mode !== 'passive' || !node || !isAnyAttributeNode(node) || !allocatedSet().has(id)) return;
