@@ -86,3 +86,12 @@ test('imported allocations report nonallocatable and other-ascendancy nodes with
   assert.ok(audit.some(issue=>issue.reason==='otherAscendancy' && issue.nodeIds.includes(101)));
   assert.deepEqual([...existing],[1,2,10,101]);
 });
+
+test('repeated plan audit reuses stable choice groups for each loaded game tree',()=>{
+  const first=choiceGroups(tree);
+  assert.strictEqual(choiceGroups(tree),first);
+  const separate={...tree};
+  assert.deepEqual(choiceGroups(separate),first);
+  assert.notStrictEqual(choiceGroups(separate),first);
+  assert.deepEqual([...blockedChoiceOptions(tree,new Set([6]))],[7]);
+});
