@@ -447,7 +447,8 @@ test('imported-build reset clears only imported plans, requires consent, and wor
     </PathOfBuilding2>`;
   for (const action of ['profile','details']) {
     if(isMobile && action==='details') await page.locator('#mobile-settings').click();
-    await page.locator('.side-fold').filter({has:page.locator('#pob-code')}).locator('summary').click();
+    const importFold=page.locator('.side-fold').filter({has:page.locator('#pob-code')});
+    if(!(await importFold.evaluate(element=>element.open))) await importFold.locator('summary').click();
     await page.locator('#pob-code').fill(xml);
     await page.locator('#pob-import').click();
     await expect(page.locator('#pob-build-stage')).toBeVisible();
