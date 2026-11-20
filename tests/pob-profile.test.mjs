@@ -138,3 +138,22 @@ test('switching to English keeps source gear text collapsed and unmodified',()=>
     assert.equal(stats[0].children[1].textContent,'1467894');
   } finally {globalThis.document=oldDocument}
 });
+
+test('PoB rounded values can reveal the stored full-precision value on touch',()=>{
+  const previous=globalThis.document;
+  const ids=new Map();
+  const el=name=>({name,children:[],className:'',textContent:'',title:'',open:false,
+    classList:{add(){}},append(...items){this.children.push(...items)},
+    replaceChildren(...items){this.children=[...items]}});
+  globalThis.document={createElement:el,createDocumentFragment:()=>el('fragment'),
+    getElementById:id=>{if(!ids.has(id))ids.set(id,el('root'));return ids.get(id)}};
+  try {
+    const snapshot={...source,stats:[{name:'AverageHit',value:'5025251.53575'}]};
+    renderPobProfile(snapshot,0,'ko');
+    const card=ids.get('pob-profile-stat-list').children[0].children[0];
+    assert.equal(card.children[1].textContent,'5,025,251.54');
+    assert.equal(card.children[2].name,'details');
+    assert.equal(card.children[2].children[1].textContent,'5025251.53575');
+    assert.equal(snapshot.stats[0].value,'5025251.53575');
+  } finally {globalThis.document=previous}
+});

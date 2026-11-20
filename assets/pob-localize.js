@@ -148,13 +148,27 @@ export function localizePobMetric(name,language='ko',dict={}) {
   if(tokens.every(token=>tokenMap[token]))return tokens.map(token=>tokenMap[token]).join(' ');
   return String(name);
 }
-/** Preserve all digits and decimal precision; only add grouping separators. */
+/**
+ * Round *displayed* PoB snapshot decimals to two places. Preserve the stored
+ * value; never feed rounded values into allocation or calculation logic.
+ * Decimal-string rounding avoids binary Number.toFixed() artifacts (1.005)
+ * and avoids losing precision for large integer components.
+ */
 export function formatPobValue(value,language='ko') {
   const source=String(value??'');
-  if(language!=='ko') return source;
   if(!/^[+-]?\d+(?:\.\d+)?$/.test(source))return source;
-  const [integer,fraction]=source.split('.');
-  return integer.replace(/\B(?=(\d{3})+(?!\d))/g,',')+(fraction===undefined?'':'.'+fraction);
+  const sign=/^[+-]/.test(source)?source[0]:'';
+  const [integer,fraction]=(sign?source.slice(1):source).split('.');
+  if(fraction===undefined)
+    return language==='ko' ? source.replace(/\B(?=(\d{3})+(?!\d))/g,',') : source;
+  let whole=integer;
+  let cents=Number((fraction+'00').slice(0,2));
+  if(fraction.length>2 && fraction[2]>='5') cents++;
+  if(cents===100) {whole=(BigInt(whole)+1n).toString();cents=0;}
+  const decimal=String(cents).padStart(2,'0');
+  const prefix=whole==='0' && cents===0 && sign==='-'?'':sign;
+  const grouped=language==='ko'?whole.replace(/\B(?=(\d{3})+(?!\d))/g,','):whole;
+  return prefix+grouped+'.'+decimal;
 }
 const modPhrases=Object.keys(fields).sort((a,b)=>b.length-a.length);
 function translateEffectTarget(s,dict) {

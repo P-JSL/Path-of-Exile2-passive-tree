@@ -113,7 +113,10 @@ Another Base
   await skillSelect.selectOption('1');
   await expect(page.locator('#pob-profile-skill-list')).toContainText('전기불꽃');
   await expect(page.locator('#pob-profile-stat-list')).toContainText('평균 적중 피해');
-  await expect(page.locator('#pob-profile-stat-list')).toContainText('5,025,251.53575');
+  await expect(page.locator('#pob-profile-stat-list')).toContainText('5,025,251.54');
+  const originalStat=page.locator('.pob-stat-row').filter({hasText:'평균 적중 피해'});
+  await originalStat.locator('.pob-stat-raw summary').click();
+  await expect(originalStat.locator('.pob-stat-raw code')).toHaveText('5025251.53575');
   await expect(page.locator('#pob-profile-stat-list')).toContainText('최대 인내 충전 수');
   const originalItem=page.locator('.pob-equipment-tile').filter({hasText:'Mobile Helm'});
   const detail=originalItem.locator('.pob-source-details');
@@ -357,6 +360,16 @@ test('Oracle change overlay clearly distinguishes revealed vs ghost nodes withou
   const initially=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
   expect(initially.added).toBeGreaterThan(0);
   expect(initially.shown).toBe(true);
+  const proportional=await page.evaluate(async()=>{
+    const {oracleOverlayStyle,normalNodeRadius}=await import('/assets/render-quality.js');
+    return [.012,.04,.10,.19,.28,.5].map(zoom=>({
+      zoom,overlay:oracleOverlayStyle(zoom),normal:normalNodeRadius(zoom)
+    }));
+  });
+  for(const point of proportional) {
+    expect(point.overlay.radius).toBe(point.normal);
+    if(point.zoom<.28) expect(point.overlay.doubleRing).toBe(false);
+  }
   await page.locator('#oracle-toggle').uncheck();
   await expect(page.locator('#oracle-diff-banner')).toHaveAttribute('data-view','preview');
   await expect.poll(()=>page.evaluate(()=>window.__oracleOverlayFrames.at(-1)?.shown)).toBe(false);

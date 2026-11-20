@@ -1,7 +1,7 @@
 import { getBounds } from './tree-model.js';
 import { clampTreeViewport } from './viewport-limits.js';
 import { ViewportIndex } from './spatial-index.js';
-import { useNormalNodeBatching, normalNodePaint } from './render-quality.js';
+import { useNormalNodeBatching, normalNodePaint, normalNodeRadius, oracleOverlayStyle } from './render-quality.js';
 import { percentile95, pushFrameSample } from './perf-diagnostics.js';
 import { iconSpriteKey, nodeFrameKey, drawAtlasFrame, loadVisualAtlases, loadClassArt } from './visual-assets.js';
 
@@ -293,9 +293,12 @@ export class TreeRenderer {
     const diff = this.oracleDifference;
     if (!this.oracleComparison || this.mode !== 'passive' || !diff?.nodes.length) return;
     const ctx = this.ctx, showing = this.oracleShown;
+    const marker = oracleOverlayStyle(this.zoom);
     ctx.save();
-    ctx.globalAlpha = showing ? 1 : .68;
-    ctx.lineWidth = showing ? 2.6 : 1.8;
+    ctx.globalAlpha = showing ? .9 : .64;
+    // Match the ordinary passive connector at the current zoom. Fixed
+    // 2.6px purple edges used to dominate the full-tree overview.
+    ctx.lineWidth = marker.connectorWidth;
     ctx.strokeStyle = showing ? '#de83ff' : '#a68bcc';
     if (!showing) ctx.setLineDash([5,5]);
     ctx.beginPath();
@@ -325,16 +328,17 @@ export class TreeRenderer {
     for (const node of diff.nodes) {
       if (node.x < left-120 || node.x > right+120 || node.y < top-120 || node.y > bottom+120) continue;
       const p = this.toScreen(node.x,node.y);
-      const radius = Math.max(7,Math.min(17,this.zoom*30));
+      const radius = marker.radius;
       ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);
-      ctx.lineWidth = showing ? 3 : 2;
-      ctx.strokeStyle = showing ? '#ffe3ff' : '#d5a4ed';
+      ctx.lineWidth = marker.lineWidth;
+      ctx.strokeStyle = showing ? '#e5a2ff' : '#c6a6dd';
       ctx.stroke();
-      // Inner accent distinguishes unlocked additions from dashed previews,
-      // even at overview zoom or when the original node icon is very small.
-      if (showing) {
-        ctx.beginPath();ctx.arc(p.x,p.y,Math.max(4,radius-5),0,Math.PI*2);
-        ctx.lineWidth = 2;ctx.strokeStyle = '#b651f3';ctx.stroke();
+      // Close zoom may show an inner accent; overview zoom draws exactly
+      // one ordinary-size node ring, never an oversized double halo.
+      if (showing && marker.doubleRing) {
+        ctx.beginPath();ctx.arc(p.x,p.y,radius * .52,0,Math.PI*2);
+        ctx.lineWidth = marker.lineWidth * .8;
+        ctx.strokeStyle = '#b651f3';ctx.stroke();
       }
     }
     ctx.restore();
@@ -342,7 +346,7 @@ export class TreeRenderer {
   /** Preserve all low-zoom normal nodes but draw shared colors in a few paths. */
   drawNormalsBatched(nodes) {
     const groups = new Map(), individual = [];
-    const radius = Math.max(1.2, Math.min(9, this.zoom * 21));
+    const radius = normalNodeRadius(this.zoom);
     for (const node of nodes) {
       const allocated = this.allocated.has(node.id);
       if (node.id === this.selectedId || this.searchMatches.has(node.id) ||
@@ -379,7 +383,8 @@ export class TreeRenderer {
   drawNode(n) {
     const ctx = this.ctx, p = this.toScreen(n.x, n.y);
     const noteworthy = n.category !== 'normal';
-    let radius = Math.max(noteworthy ? 2.3 : 1.2, Math.min(noteworthy ? 15 : 9, this.zoom * (noteworthy ? 36 : 21)));
+    let radius = noteworthy ?
+      Math.max(2.3, Math.min(15, this.zoom * 36)) : normalNodeRadius(this.zoom);
     const allocated = this.allocated.has(n.id), highlighted = n.id === this.selectedId;
     const activeSearch = this.searchMatches.has(n.id), previewed = this.previewPath.has(n.id);
     const locked = this.lockedOracle && n.hiddenOracle;
