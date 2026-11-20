@@ -1,5 +1,6 @@
 import { importPobCode, resolvePobTree } from './pob-import.js';
 import { renderPobProfile } from './pob-profile.js';
+import {localizePobName,localizePobSlot,localizePobMetric,localizePobItemText,localizePobGem,formatPobValue} from './pob-localize.js';
 import { partitionPobWeaponSets } from './weapon-sets.js';
 import { oracleDifference } from './oracle-difference.js';
 import { socketedJewelDetails } from './pob-jewels.js';
@@ -24,6 +25,7 @@ let pobProfileBuild = null, pobProfileItemSet = '', pobProfileSkillSet = '';
 let tree = null, renderer = null, extraTrees = {};
 let oracleDiff = null;
 let localeCatalog = { names: {}, stats: {} };
+let pobKoCatalog = {};
 let extraLoadPromise = null;
 let glossaryPromise = null;
 function loadKeywordGlossary() {
@@ -39,7 +41,7 @@ function loadKeywordGlossary() {
   return glossaryPromise;
 }
 const APP_REVISION = new URL(import.meta.url).searchParams.get('v');
-const localeDataFiles = ['./data/ko.json', './data/ko-passives.json', './data/ko-stats.json']
+const localeDataFiles = ['./data/ko.json', './data/ko-passives.json', './data/ko-stats.json', './data/pob-ko.json']
   .map(path => APP_REVISION ? path + '?v=' + encodeURIComponent(APP_REVISION) : path);
 async function fetchJSON(path) {
   // Respect browser HTTP caching: no-cache revalidated multi-megabyte trees on every visit.
@@ -52,6 +54,7 @@ async function loadTranslations() {
   const base = responses[0].status === 'fulfilled' ? responses[0].value : {};
   const extended = responses[1].status === 'fulfilled' ? responses[1].value : {};
   const generated = responses[2].status === 'fulfilled' ? responses[2].value : {};
+  pobKoCatalog = responses[3].status === 'fulfilled' ? responses[3].value : {};
   // Existing verified game names win over fallback dictionaries.
   localeCatalog = { names: { ...(generated.names || {}), ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(generated.stats || {}), ...(base.stats || {}) }, nodes: generated.nodes || {} };
   searchCache = null;
@@ -61,6 +64,7 @@ async function loadTranslations() {
     renderer.update({ localizeName: localName });
     showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
     renderAllocatedList(); refreshSearch(false); updateHeader();
+    if (importedPob) renderPobOverview();
   }
 }
 async function loadExtraTrees() {
@@ -599,7 +603,8 @@ function showDetail(n) {
   const jewels = socketedJewelDetails(importSpec).get(n.id) || [];
   $('pob-jewel-detail').hidden = !jewels.length;
   $('pob-jewel-text').textContent = jewels.map(item =>
-    item.text || ('Item ID ' + item.itemId)).join('\n\n');
+    localizePobItemText(item.text,state.language,pobKoCatalog) ||
+    (state.language === 'ko' ? '아이템 ID ' : 'Item ID ') + item.itemId).join('\n\n');
   const control = $('attribute-control');
   const choice = $('attribute-select');
   const selectable = state.mode === 'passive' && isAnyAttributeNode(n);
@@ -762,8 +767,9 @@ function showCopyFallback(url) {
 
 // PoB source is kept separately from editable allocations: the original export
 // cannot honestly claim to include changes made in this web planner.
-function addPobSection(container, title, blocks, empty = '') {
+function addPobSection(container, title, blocks, empty = '', expand = false) {
   const section = document.createElement('details');
+  section.open = expand;
   section.className = 'pob-section';
   const heading = document.createElement('summary');
   heading.textContent = title + ' (' + blocks.length + ')';
@@ -802,7 +808,7 @@ function populatePobProfileSetSelect(id, sets, preferred, original) {
   for (const [index, set] of sets.entries()) {
     const option = document.createElement('option');
     option.value = set.id;
-    option.textContent = set.title || set.id || String(index + 1);
+    option.textContent = localizePobName(set.title,state.language,pobKoCatalog) || set.id || String(index + 1);
     fragment.append(option);
   }
   control.replaceChildren(fragment);
@@ -814,7 +820,7 @@ function renderPobCurrentProfile() {
   if (!importedPob) return;
   renderPobProfile(importedPob.build, importedPob.selectedIndex, state.language, {
     itemSetId:pobProfileItemSet,skillSetId:pobProfileSkillSet
-  });
+  }, { dictionary:pobKoCatalog, characterName:name=>localName(name,'passive') });
 }
 function renderPobOverview() {
   const panel = $('pob-overview');
@@ -833,11 +839,13 @@ function renderPobOverview() {
   for (const [index, item] of build.specs.entries()) {
     const option = document.createElement('option');
     option.value = String(index);
-    option.textContent = (index + 1) + '. ' + (item.title || item.treeVersion || 'Tree');
+    option.textContent = (index + 1) + '. ' + (localizePobName(item.title,state.language,pobKoCatalog) || item.treeVersion || (state.language==='ko'?'트리':'Tree'));
     select.append(option);
   }
   select.value = String(selectedIndex);
-  $('pob-meta').textContent = [build.className, build.ascendancyName, build.level ? 'Lv ' + build.level : '', 'Nodes ' + spec.nodeIds.length]
+  $('pob-meta').textContent = [localName(build.className,'passive'),localName(build.ascendancyName,'passive'),
+    build.level ? (state.language==='ko'?'레벨 ':'Lv ')+build.level : '',
+    state.language==='ko'?'패시브 '+spec.nodeIds.length+'개':'Nodes '+spec.nodeIds.length]
     .filter(Boolean).join(' · ') + ' · W1 ' + spec.weaponSets[0].length + ' / W2 ' + spec.weaponSets[1].length;
   const resolution = resolvePobTree(build, tree, selectedIndex);
   const partition = partitionPobWeaponSets(spec);
@@ -858,22 +866,29 @@ function renderPobOverview() {
   groups.replaceChildren();
   addPobSection(groups, t('pobSkills'), build.skillSets.flatMap(set =>
     set.groups.map((group, index) => [
-      (set.title || set.id || 'Set') + ' · ' + (group.label || group.slot || 'Group ' + (index + 1)),
-      group.gems.map(gem => (gem.enabled ? '' : '[OFF] ') + gem.name +
-        (gem.level ? ' Lv ' + gem.level : '') + (gem.quality ? ' Q ' + gem.quality : '')).join('\n')
+      localizePobName(set.title || set.id || (state.language==='ko'?'구성':'Set'),state.language,pobKoCatalog)
+        + ' · ' + localizePobName(group.label || group.slot || (state.language==='ko'?'그룹 ':'Group ')+(index+1),state.language,pobKoCatalog),
+      group.gems.map(gem=>localizePobGem(gem,state.language,pobKoCatalog)).join('\n')
     ])), t('pobNoSkills'));
   addPobSection(groups, t('pobItems'), build.itemSets.flatMap(set =>
     set.slots.filter(slot => slot.text).map(slot => [
-      (set.title || set.id || 'Set') + ' · ' + slot.name, slot.text
-    ])), t('pobNoGear'));
+      localizePobName(set.title || set.id || (state.language==='ko'?'구성':'Set'),state.language,pobKoCatalog)
+        + ' · ' + localizePobSlot(slot.name,state.language),
+      localizePobItemText(slot.text,state.language,pobKoCatalog)
+    ])), t('pobNoGear'), state.language==='ko');
   addPobSection(groups, t('pobJewels'), spec.sockets.filter(socket => socket.text).map(socket =>
-    ['ID ' + socket.nodeId, socket.text]), t('pobNoJewels'));
+    [(state.language==='ko'?'주얼 노드 ID ':'ID ')+socket.nodeId,
+      localizePobItemText(socket.text,state.language,pobKoCatalog)]), t('pobNoJewels'));
   addPobSection(groups, t('pobConfig'), build.configSets.flatMap(set =>
     set.inputs.map(input => [
-      (set.title || set.id || 'Set') + ' · ' + (input.name || 'Input'),
-      Object.entries(input).filter(([key]) => key !== 'name').map(([key,value]) => key + ': ' + value).join(', ')
+      localizePobName(set.title || set.id || (state.language==='ko'?'구성':'Set'),state.language,pobKoCatalog)
+        + ' · ' + localizePobMetric(input.name||'Input',state.language,pobKoCatalog),
+      Object.entries(input).filter(([key]) => key !== 'name').map(([key,value]) =>
+        localizePobMetric(key,state.language,pobKoCatalog) + ': ' + (state.language==='ko' ? ({true:'참',false:'거짓'}[value]||value) : value)).join(', ')
     ])), t('pobNoConfig'));
-  addPobSection(groups, t('pobStats'), build.stats.map(stat => [stat.name, stat.value]));
+  addPobSection(groups,t('pobStats'),build.stats.map(stat=>[
+    localizePobMetric(stat.name,state.language,pobKoCatalog),formatPobValue(stat.value,state.language)
+  ]));
   if (build.notes) addPobSection(groups, t('pobNotes'), [[t('pobNotes'), build.notes]]);
   pobProfileItemSet = populatePobProfileSetSelect(
     'pob-profile-gear-select', build.itemSets, pobProfileItemSet, build.activeItemSet);
