@@ -154,7 +154,14 @@ export class TreeRenderer {
     ctx.lineWidth = Math.max(.65, Math.min(2.8, .9 + d * 2));
     for (const edge of this.viewportIndex.visibleEdges(left, top, right, bottom, 500)) {
       const a = this.nodeMap.get(edge.a), b = this.nodeMap.get(edge.b);
-      if ((a.x < left - 500 && b.x < left - 500) || (a.x > right + 500 && b.x > right + 500) || (a.y < top - 500 && b.y < top - 500) || (a.y > bottom + 500 && b.y > bottom + 500)) continue;
+      // Orbit arcs can cross the viewport when both endpoints are off-screen.
+      // The viewport index already checks their entire official orbit bounds.
+      const curved = edge.orbit && a.group === b.group && a.orbit === b.orbit &&
+        Number.isFinite(a.groupX) && Number.isFinite(a.groupY);
+      if (!curved && ((a.x < left - 500 && b.x < left - 500) ||
+        (a.x > right + 500 && b.x > right + 500) ||
+        (a.y < top - 500 && b.y < top - 500) ||
+        (a.y > bottom + 500 && b.y > bottom + 500))) continue;
       const p = this.toScreen(a.x, a.y), q = this.toScreen(b.x, b.y);
       const activated = (this.allocated.has(a.id) || this.rootIds.has(a.id)) && (this.allocated.has(b.id) || this.rootIds.has(b.id));
       const selected = a.id === this.selectedId || b.id === this.selectedId;
