@@ -8,7 +8,43 @@ const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', ge
 const VALID_MODES = ['passive', 'ascendancy', 'atlas', 'genesis'];
 const KEY = 'exile-tree-plans-v1';
 let tree = null, renderer = null, extraTrees = {};
-let localeCatalog = { names: {} };
+let localeCatalog = { names: {}, stats: {} };
+let extraLoadPromise = null;
+const localeDataFiles = ['./data/ko.json', './data/ko-passives.json'];
+async function fetchJSON(path) {
+  // Respect browser HTTP caching: no-cache revalidated multi-megabyte trees on every visit.
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`HTTP ${response.status} · ${path}`);
+  return response.json();
+}
+async function loadTranslations() {
+  const responses = await Promise.allSettled(localeDataFiles.map(fetchJSON));
+  const base = responses[0].status === 'fulfilled' ? responses[0].value : {};
+  const extended = responses[1].status === 'fulfilled' ? responses[1].value : {};
+  // Existing PoE2DB names take priority where two Korean sources disagree.
+  localeCatalog = { names: { ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(base.stats || {}) } };
+  if (responses.every(r => r.status === 'rejected')) console.warn('Korean language files were unavailable.', responses.map(r => r.reason));
+  if (tree && renderer) {
+    populateClasses(); populateAscendancies();
+    renderer.update({ localizeName: localName });
+    showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
+    renderAllocatedList(); refreshSearch(false); updateHeader();
+  }
+}
+async function loadExtraTrees() {
+  if (!extraLoadPromise) extraLoadPromise = Promise.all([fetchJSON(DATA_FILES.atlas), fetchJSON(DATA_FILES.genesis)])
+    .then(([atlas, genesis]) => {
+      extraTrees = { atlas: buildExtraTree(atlas, 'atlas'), genesis: buildExtraTree(genesis, 'genesis') };
+      updateDataSummary(); renderAllocatedList();
+      return extraTrees;
+    }).catch(error => { extraLoadPromise = null; throw error; });
+  return extraLoadPromise;
+}
+function updateDataSummary() {
+  if (!tree) return;
+  const format = x => Number(x || 0).toLocaleString(state.language);
+  $('data-summary').textContent = t('summary', { nodes: format(tree.nodes.size), asc: tree.ascendancies.length, atlas: format(extraTrees.atlas?.nodes.size), genesis: format(extraTrees.genesis?.nodes.size) });
+}
 const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {} };
 let currentNodes = [], currentIds = new Set();
 let toastTimeout;
@@ -89,7 +125,7 @@ function saveAllocated(set) {
   const record = state.mode === 'passive' ? state.allocations : state.mode === 'ascendancy' ? state.ascAllocations : state.extraAllocations;
   const key = state.mode === 'passive' ? state.className : state.mode === 'ascendancy' ? state.ascendancy : state.mode;
   record[key] = [...set];
-  persist(); updatePoints();
+  persist(); updatePoints(); renderAllocatedList();
 }
 function oracleUnlocked() { return (state.ascAllocations.Oracle || []).includes(5571); }
 function nodeAllowed(n) {
@@ -144,7 +180,77 @@ function scene() {
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
   renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName });
   $('connection-count').textContent = t('edgeCount',{count:renderer.edges.length.toLocaleString(state.language)});
-  refreshSearch(false); persist();
+  renderAllocatedList(); refreshSearch(false); persist();
+}
+function allocationGroups() {
+  if (!tree) return [];
+  return [
+    { mode:'passive', title:t('tabPassive'), model:tree, ids:state.allocations[state.className] || [] },
+    { mode:'ascendancy', title:t('tabAscendancy'), model:tree, ids:state.ascAllocations[state.ascendancy] || [] },
+    { mode:'atlas', title:t('tabAtlas'), model:extraTrees.atlas, ids:state.extraAllocations.atlas || [] },
+    { mode:'genesis', title:t('tabGenesis'), model:extraTrees.genesis, ids:state.extraAllocations.genesis || [] }
+  ];
+}
+function renderAllocatedList() {
+  const panel = $('allocated-list');
+  if (!panel || !tree) return;
+  const priorOpened = new Set([...panel.querySelectorAll('details[open]')].map(element => element.dataset.mode));
+  const fragment = document.createDocumentFragment();
+  let total = 0;
+  for (const group of allocationGroups()) {
+    const ids = [...new Set(group.ids)].filter(id => group.model?.nodes.has(id));
+    total += ids.length;
+    const details = document.createElement('details'); details.className = 'allocated-group';
+    details.dataset.mode = group.mode; details.open = priorOpened.has(group.mode) || state.mode === group.mode;
+    const heading = document.createElement('summary');
+    const label = document.createElement('span'); label.textContent = group.title;
+    const count = document.createElement('span'); count.className = 'allocated-group-count';
+    count.textContent = ids.length.toLocaleString(state.language);
+    heading.append(label, count); details.append(heading);
+    const items = document.createElement('div'); items.className = 'allocated-items';
+    if (!ids.length) {
+      const empty = document.createElement('p'); empty.className = 'allocated-empty';
+      empty.textContent = t('allocatedEmpty'); items.append(empty);
+    }
+    for (const id of ids) {
+      const node = group.model.nodes.get(id);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'allocated-item';
+      if (state.mode === group.mode && state.selectedId === id) b.classList.add('active');
+      const title = document.createElement('strong'); title.className = 'allocated-item-name'; title.textContent = localName(node) || t('noName');
+      const type = document.createElement('small'); type.className = 'allocated-item-meta';
+      type.textContent = t(node.category === 'keystone' ? 'keystonePassive' : node.category === 'notable' ? 'notablePassive' : node.category === 'socket' ? 'socketPassive' : 'normalPassive') + ' · ID ' + id;
+      b.append(title, type);
+      if (node.stats?.length) {
+        const stat = document.createElement('span'); stat.className = 'allocated-item-desc';
+        stat.textContent = node.stats.slice(0, 2).map(localStat).join('\n'); b.append(stat);
+      }
+      b.addEventListener('click', async () => {
+        if (state.mode !== group.mode && !(await selectMode(group.mode))) return;
+        selectSearchNode(id);
+      });
+      items.append(b);
+    }
+    details.append(items); fragment.append(details);
+  }
+  panel.replaceChildren(fragment);
+  $('allocated-total').textContent = total.toLocaleString(state.language);
+  $('details-placeholder').hidden = total > 0 || !!state.selectedId;
+}
+async function selectMode(mode) {
+  if (!VALID_MODES.includes(mode)) return false;
+  if ((mode === 'atlas' || mode === 'genesis') && !extraTrees[mode]) {
+    $('loading-overlay').hidden = false;
+    try { await loadExtraTrees(); }
+    catch (error) {
+      $('error-overlay').hidden = false;
+      $('error-message').textContent = error.message;
+      return false;
+    } finally { $('loading-overlay').hidden = true; }
+  }
+  state.mode = mode; state.selectedId = null; state.search = '';
+  $('search-input').value = '';
+  scene(); closeOverlay();
+  return true;
 }
 function showDetail(n) {
   $('details-placeholder').hidden = !!n;
@@ -178,7 +284,7 @@ function onNodeSelected(n) {
   if (!n) return;
   state.selectedId = n.id;
   renderer.update({ selectedId: n.id });
-  showDetail(n);
+  showDetail(n); renderAllocatedList();
   if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
 }
 function selectSearchNode(id) {
@@ -186,7 +292,7 @@ function selectSearchNode(id) {
   state.selectedId = n.id;
   renderer.focus(n.x, n.y, Math.max(renderer.zoom, .34));
   renderer.update({ selectedId: id });
-  showDetail(n); closeOverlay();
+  showDetail(n); renderAllocatedList(); closeOverlay();
   if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
 }
 function refreshSearch(show = true) {
@@ -266,14 +372,11 @@ function wireUI() {
         ? t('oracleStatus',{status:t(oracleUnlocked()?'oracleReady':'oracleLocked')}) : t('sceneDefault');
       renderer.update({localizeName:localName});
       showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
-      refreshSearch();
-      $('data-summary').textContent = t('summary',{nodes:tree.nodes.size.toLocaleString(state.language),asc:tree.ascendancies.length,atlas:extraTrees.atlas.nodes.size.toLocaleString(state.language),genesis:extraTrees.genesis.nodes.size.toLocaleString(state.language)});
+      renderAllocatedList(); refreshSearch(); updateDataSummary();
     }
     persist();
   });
-  for (const tab of document.querySelectorAll('.tree-tab')) tab.addEventListener('click', () => {
-    state.mode = tab.dataset.mode; state.selectedId = null; state.search = ''; $('search-input').value = ''; scene(); closeOverlay();
-  });
+  for (const tab of document.querySelectorAll('.tree-tab')) tab.addEventListener('click', () => { void selectMode(tab.dataset.mode); });
   $('class-select').addEventListener('change', e => { state.className = e.target.value; state.selectedId = null; populateAscendancies(); scene(); });
   $('ascendancy-select').addEventListener('change', e => { state.ascendancy = e.target.value; state.selectedId = null; scene(); });
   $('oracle-toggle').addEventListener('change', e => { state.showOracle = e.target.checked; scene(); });
@@ -303,25 +406,20 @@ function wireUI() {
 }
 async function loadTree() {
   $('loading-overlay').hidden = false; $('error-overlay').hidden = true;
+  const localePromise = loadTranslations();
+  // Start independent tree downloads without blocking the first character-tree paint.
+  const extraPromise = loadExtraTrees();
+  extraPromise.catch(error => console.warn('Optional Atlas/Genesis data unavailable:', error));
   try {
-    const entries = await Promise.all(Object.entries(DATA_FILES).map(async ([key, file]) => {
-      const response = await fetch(file, { cache: 'no-cache' });
-      if (!response.ok) throw new Error(`HTTP ${response.status} · ${file}`);
-      return [key, await response.json()];
-    }));
-    const raw = Object.fromEntries(entries);
-    tree = buildTree(raw.passive);
-    try { const response = await fetch('./data/ko.json', {cache:'no-cache'}); if (response.ok) localeCatalog = await response.json(); }
-    catch (e) { console.warn('Korean terms are unavailable, showing source text.', e); }
-    extraTrees = { atlas: buildExtraTree(raw.atlas, 'atlas'), genesis: buildExtraTree(raw.genesis, 'genesis') };
-    if (tree.nodes.size < 4000 || tree.ascendancies.length < 20 || tree.classes.length < 8 || extraTrees.atlas.nodes.size < 500 || extraTrees.genesis.nodes.size < 200) {
+    tree = buildTree(await fetchJSON(DATA_FILES.passive));
+    if (tree.nodes.size < 4000 || tree.ascendancies.length < 20 || tree.classes.length < 8)
       throw new Error('트리 데이터가 불완전합니다.');
-    }
+    if (isExtraMode()) await extraPromise;
     if (!renderer) renderer = new TreeRenderer($('tree-canvas'), { onSelect: onNodeSelected });
-    populateClasses(); scene();
-    $('version-label').textContent = t('version');
-    $('data-summary').textContent = t('summary',{nodes:tree.nodes.size.toLocaleString(state.language),asc:tree.ascendancies.length,atlas:extraTrees.atlas.nodes.size.toLocaleString(state.language),genesis:extraTrees.genesis.nodes.size.toLocaleString(state.language)});
+    populateClasses(); scene(); updateDataSummary();
     $('loading-overlay').hidden = true;
+    // Translation loading is optional; render using the source data immediately.
+    await localePromise;
   } catch (err) {
     $('loading-overlay').hidden = true; $('error-overlay').hidden = false;
     $('error-message').textContent = `${err.message}. ${t('loadFailedSuffix')}`;
