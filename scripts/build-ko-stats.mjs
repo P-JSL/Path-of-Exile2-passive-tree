@@ -9,6 +9,7 @@ const atlas = JSON.parse(readFileSync('data/atlas.json', 'utf8'));
 const genesis = JSON.parse(readFileSync('data/genesis.json', 'utf8'));
 const staticPassives = JSON.parse(readFileSync('data/ko-passives.json', 'utf8'));
 const locale = JSON.parse(readFileSync('data/ko.json', 'utf8'));
+const curatedStats = JSON.parse(readFileSync('data/ko-stat-overrides.json', 'utf8')).stats;
 const simplify = text => String(text).replace(/\[([^|\]]+)\|([^\]]+)\]/g, '$2');
 const numberRe = /-?\d+(?:\.\d+)?/g;
 const signature = text => simplify(text).replace(numberRe, '{NUM}');
@@ -124,6 +125,7 @@ for (const dict of [upstream, translate]) for (const [english, korean] of Object
   else if (templateLookup.get(sig)?.korean !== korean) templateLookup.set(sig, null);
 }
 function translateLine(text) {
+  if (curatedStats[text]) return curatedStats[text];
   if (locale.stats?.[text]) return locale.stats[text];
   const bilingual = bilingualStats.get(normalizeEnglish(text));
   if (bilingual) return bilingual;
@@ -201,4 +203,5 @@ for (const [mode, nodes] of [['passive', Object.values(all.nodes)], ['atlas', Ob
   console.log('[' + mode + '] Korean names ' + coverage(names.size, covered.length) + '; unmatched: ' + missing.slice(0, 15).join(' | '));
 }
 console.log('Unmatched stat samples: ' + [...srcLines].filter(s => !stats[s] && !locale.stats?.[s]).slice(0, 12).join(' | '));
-console.log('REMAINING_UNTRANSLATED_STATS ' + JSON.stringify([...srcLines].filter(text => !stats[text] && !locale.stats?.[text])));
+const unmatchedStats = [...srcLines].filter(text => !stats[text] && !locale.stats?.[text]);
+if (unmatchedStats.length) console.warn('Untranslated modifier texts: ' + JSON.stringify(unmatchedStats));
