@@ -31,6 +31,10 @@ jobs:
           node --check assets/extra-model.js
           node scripts/validate.mjs
           node --test tests/*.test.mjs
+      - name: Bust browser cache for the validated application entry point
+        run: |
+          sed -i 's@src="./assets/app.js"@src="./assets/app.js?v='${GITHUB_SHA}'"@' index.html
+          grep -Fq "app.js?v=${GITHUB_SHA}" index.html
       - uses: actions/configure-pages@v6
       - name: Upload validated static website
         uses: actions/upload-pages-artifact@v5
