@@ -99,11 +99,27 @@ export function localizePobName(name, language='ko', dictionaries={}) {
     exact(dictionaries.ui,source) ||
     groupNames[source] || source;
 }
+/** Generated rare names are not fixed unique item names; compose from verified
+ * game-source affix terms only when every part has a Korean counterpart.
+ * The result is explicitly labelled approximate in the UI.
+ */
+export function localizePobRareName(name,language='ko',dict={}) {
+  const original=String(name||'');
+  const exact=localizePobName(original,language,dict);
+  if(language!=='ko'||exact!==original)return {name:exact,approximate:false};
+  const tokens=original.trim().split(/\s+/);
+  if(tokens.length<2 || tokens.length>3 ||
+    !tokens.every(token=>typeof dict.tags?.[token]==='string'))
+    return {name:original,approximate:false};
+  return {name:tokens.map(token=>dict.tags[token]).join(' '),approximate:true};
+}
 export function localizePobSlot(name, language='ko') {
   if(language!=='ko') return name || '';
   const slot=String(name || '').trim();
   const pattern=/^(Weapon|Weapon Swap|Offhand|Off Hand)\s*(\d+)$/i.exec(slot);
-  if(pattern) return (pattern[1].toLowerCase().startsWith('weapon') ? '무기' : '보조 장비')+' '+pattern[2];
+  if(pattern) return pattern[1].toLowerCase()==='weapon swap'
+    ? '교체 무기 '+pattern[2] :
+      (pattern[1].toLowerCase()==='weapon' ? '무기 ' : '보조 장비 ')+pattern[2];
   const slots={
     'Weapon 1':'무기 1','Weapon 2':'무기 2','Weapon 1 Swap':'교체 무기 1',
     'Weapon 2 Swap':'교체 무기 2','Helmet':'투구','Helm':'투구',
@@ -197,8 +213,14 @@ export function localizePobItemLine(value,language='ko',dict={}) {
 }
 export function localizePobItemText(raw,language='ko',dict={}) {
   if(language!=='ko')return String(raw||'');
-  return String(raw||'').split(/\r?\n/).map(line=>
-    localizePobItemLine(line,language,dict)).join('\n');
+  const lines=String(raw||'').split(/\r?\n/);
+  // Only the first item name below the rarity line is a generated rare name.
+  // The following base type and modifiers retain their own exact lookup rules.
+  const rarity= /^Rarity:\s*RARE\b/i.test(lines[0]?.trim()||'');
+  const nameIndex=rarity?lines.findIndex((line,i)=>i>0 && !!line.trim() && !/^[-─]{3,}$/.test(line.trim())):-1;
+  return lines.map((line,i)=>nameIndex===i
+    ? localizePobRareName(line.trim(),language,dict).name
+    : localizePobItemLine(line,language,dict)).join('\n');
 }
 export function localizePobGem(gem,language='ko',dict={}) {
   const name=localizePobName(gem.name,language,dict);
