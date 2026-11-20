@@ -29,6 +29,8 @@ try {
 } catch (error) {
   console.warn('Korean stat translations unavailable; retain bundled terms: ' + String(error));
 }
+console.log('Korean upstream examples: ' + JSON.stringify(Object.entries(upstream).slice(0, 6)));
+console.log('Korean upstream shock-related examples: ' + JSON.stringify(Object.entries(upstream).filter(([en]) => en.toLowerCase().includes('shock')).slice(0, 7)));
 const templateLookup = new Map();
 for (const dict of [upstream, translate]) for (const [english, korean] of Object.entries(dict)) {
   if (typeof english !== 'string' || typeof korean !== 'string' || english === korean || !english || !korean) continue;
