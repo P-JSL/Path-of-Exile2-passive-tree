@@ -273,3 +273,36 @@ test('search and allocated-item clicks highlight instantly without recentering o
   expect(afterNext).toEqual(before);
   expect(errors).toEqual([]);
 });
+
+
+test('live Oracle toggle refreshes passives without resetting the camera',async ({page,isMobile})=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  await page.locator('#zoom-in').click();
+  await page.evaluate(async()=>{
+    const {TreeRenderer}=await import('/assets/renderer.js');
+    const old=TreeRenderer.prototype.setScene;
+    window.__sceneSnapshots=[];
+    TreeRenderer.prototype.setScene=function(nodes,edges,options){
+      const before={centerX:this.centerX,centerY:this.centerY,zoom:this.zoom};
+      const result=old.call(this,nodes,edges,options);
+      window.__sceneSnapshots.push({before,
+        after:{centerX:this.centerX,centerY:this.centerY,zoom:this.zoom},
+        preserve:options.preserveViewport});
+      return result;
+    };
+  });
+  if(isMobile) await page.locator('#mobile-settings').click();
+  await expect(page.locator('#oracle-toggle')).toBeChecked();
+  await page.locator('#oracle-toggle').uncheck();
+  const first=await page.evaluate(()=>window.__sceneSnapshots.at(-1));
+  expect(first.preserve).toBe(true);
+  expect(first.after).toEqual(first.before);
+  await page.locator('#oracle-toggle').check();
+  const second=await page.evaluate(()=>window.__sceneSnapshots.at(-1));
+  expect(second.preserve).toBe(true);
+  expect(second.after).toEqual(second.before);
+  expect(errors).toEqual([]);
+});

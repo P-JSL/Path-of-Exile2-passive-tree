@@ -79,6 +79,7 @@ const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid',
 let currentNodes = [], currentIds = new Set(), blockedOptions = new Set();
 let searchCache = null;
 let searchResults = [], searchIndex = -1, searchTimer = null;
+let lastSceneViewKey = null;
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
 function localName(item, mode = state.mode) {
@@ -364,6 +365,12 @@ function updateHeader() {
 }
 function scene() {
   const model = activeTree();
+  // Keep the same camera when refreshing data for an already displayed tree.
+  // A different class/ascendancy/tab is a genuinely different map and retains
+  // the original initial positioning rules.
+  const viewKey = state.mode === 'passive' ? 'passive:' + state.className :
+    state.mode === 'ascendancy' ? 'ascendancy:' + state.ascendancy : state.mode;
+  const preserveViewport = viewKey === lastSceneViewKey && renderer.nodes.length > 0;
   currentNodes = isExtraMode() ? [...model.nodes.values()] : visibleNodes(tree, state.mode, state.ascendancy, state.showOracle);
   currentIds = new Set(currentNodes.map(n => n.id));
   blockedOptions = blockedChoiceOptions(model, allocatedSet());
@@ -380,15 +387,16 @@ function scene() {
   const importSpec = state.mode === 'passive' && importedPob?.build.className === state.className
     ? importedPob.build.specs[importedPob.selectedIndex] : null;
   updateWeaponSetControls();
-  renderer.setScene(currentNodes, model.edges, { allocated: displayedAllocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className),
+  renderer.setScene(currentNodes, model.edges, { allocated: displayedAllocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className), preserveViewport,
     weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []),
     socketedJewelIds: new Set(socketedJewelDetails(importSpec).keys()) });
   // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
   // Keep the entire world rendered and the existing Fit All control available.
-  if (state.mode === 'passive' || state.mode === 'ascendancy') {
+  if (!preserveViewport && (state.mode === 'passive' || state.mode === 'ascendancy')) {
     const start = model.nodes.get(rootIds()[0]);
     if (start) renderer.focus(start.x, start.y, state.mode === 'ascendancy' ? .27 : .19);
   }
+  lastSceneViewKey = viewKey;
   $('connection-count').textContent = t('edgeCount',{count:renderer.edges.length.toLocaleString(state.language)});
   if (state.selectedId) refreshAllocationPreview(model.nodes.get(state.selectedId));
   renderAllocatedList(); refreshSearch(false); persist();

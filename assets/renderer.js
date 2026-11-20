@@ -77,7 +77,10 @@ export class TreeRenderer {
     this.searchMatches = options.searchMatches ?? new Set();
     this.searchActive = !!options.searchActive;
     this.previewPath = options.previewPath ?? new Set();
-    this.fitAll();
+    if (options.preserveViewport) {
+      this.constrainView();
+      this.schedule();
+    } else this.fitAll();
   }
   loadBackground(className) {
     if (!className || className === this.className) return;
