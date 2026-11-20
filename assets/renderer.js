@@ -70,6 +70,7 @@ export class TreeRenderer {
       (this.nodeMap.get(id)?.connections || []).map(link => Number(link.id))));
     this.weaponSet1 = options.weaponSet1 ?? new Set();
     this.weaponSet2 = options.weaponSet2 ?? new Set();
+    this.socketedJewelIds = options.socketedJewelIds ?? new Set();
     this.lockedOracle = !!options.lockedOracle;
     this.selectedId = options.selectedId ?? null;
     this.localizeName = options.localizeName ?? (n => n.name);
@@ -112,6 +113,7 @@ export class TreeRenderer {
     if ('previewPath' in options) this.previewPath = options.previewPath;
     if ('weaponSet1' in options) this.weaponSet1 = options.weaponSet1 ?? new Set();
     if ('weaponSet2' in options) this.weaponSet2 = options.weaponSet2 ?? new Set();
+    if ('socketedJewelIds' in options) this.socketedJewelIds = options.socketedJewelIds ?? new Set();
     if (options.localizeName) this.localizeName = options.localizeName;
     this.schedule();
   }
@@ -325,6 +327,7 @@ export class TreeRenderer {
       }
       ctx.globalAlpha = 1;
       this.drawWeaponSetRing(n, p, radius, allocated);
+      this.drawSocketedJewelRing(n, p, radius);
       if (activeSearch || highlighted || previewed) this.drawSearchOutline(p, radius, highlighted, previewed);
       return;
     }
@@ -341,6 +344,7 @@ export class TreeRenderer {
     }
     ctx.globalAlpha = 1;
     this.drawWeaponSetRing(n, p, radius, allocated);
+    this.drawSocketedJewelRing(n, p, radius);
     if (activeSearch || highlighted || previewed) this.drawSearchOutline(p, radius, highlighted, previewed);
   }
   drawSearchOutline(position, radius, selected, previewed = false) {
@@ -352,6 +356,17 @@ export class TreeRenderer {
     ctx.strokeStyle = selected ? '#ffe3a0' : previewed ? '#62e4c5' : '#ffd567';
     ctx.shadowColor = selected ? '#efb858' : previewed ? '#29caa9' : '#f4c04e';
     ctx.shadowBlur = selected ? 9 : this.searchMatches.size > 80 ? 0 : 5;
+    ctx.stroke();
+    ctx.restore();
+  }
+  drawSocketedJewelRing(n, position, radius) {
+    if (!this.socketedJewelIds.has(n.id) || this.zoom < .065) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius + 10, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#bf9af2';
     ctx.stroke();
     ctx.restore();
   }
