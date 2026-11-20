@@ -32,14 +32,6 @@ try {
 console.log('Korean upstream examples: ' + JSON.stringify(Object.entries(upstream).slice(0, 6)));
 console.log('Korean upstream shock-related examples: ' + JSON.stringify(Object.entries(upstream).filter(([en]) => en.toLowerCase().includes('shock')).slice(0, 7)));
 // Match the bilingual game tree by native skill ID and source English text.
-if (process.env.CI) {
-  try {
-    const response = await fetch('https://poe2db.tw/kr/Keywords', {signal:AbortSignal.timeout(9000), headers:{'User-Agent':'Mozilla/5.0'}});
-    const html = await response.text();
-    const i = html.indexOf('감전');
-    console.log('GLOSSARY_HTML status=' + response.status + ',len=' + html.length + ',head=' + JSON.stringify(html.slice(0, 800)) + ',near=' + JSON.stringify(html.slice(Math.max(0,i-650),i+800)));
-  } catch (error) { console.log('GLOSSARY_HTML fetch failed: ' + String(error)); }
-}
 const poe2db = {};
 async function fetchTree(uri) {
   const response = await fetch(uri, {headers:{Referer:'https://poe2db.tw/','User-Agent':'Mozilla/5.0'}, signal:AbortSignal.timeout(12000)});
@@ -178,7 +170,17 @@ for (const [type, rawNodes] of [
       ? koLines.map(simplify) : [];
     if (name) named++;
     if (translatedLines.length) { statsMatched++; directLines += translatedLines.length; }
-    if (name || translatedLines.length) directNodes[type][id] = {name, stats:translatedLines};
+    if (name || translatedLines.length) {
+      const entry = {name, stats:translatedLines};
+      // Retain clickable in-game keyword IDs without changing display text.
+      if (sameVersion && enLines.length === koLines.length && koLines.some(line => /\\[[^\\]]+\\]/.test(line))) {
+        entry.richStats = {
+          ko: koLines.map(line => line.includes('[') ? line : null),
+          en: enLines.map(line => line.includes('[') ? line : null)
+        };
+      }
+      directNodes[type][id] = entry;
+    }
   }
   console.log('PoE2DB verified ' + type + ': translated names ' + named + '/' + rawNodes.length + ', translated node effects ' + statsMatched + '/' + rawNodes.length + ', lines=' + directLines);
 }
