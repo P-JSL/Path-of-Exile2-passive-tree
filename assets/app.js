@@ -11,7 +11,7 @@ const KEY = 'exile-tree-plans-v1';
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
-const localeDataFiles = ['./data/ko.json', './data/ko-passives.json'];
+const localeDataFiles = ['./data/ko.json', './data/ko-passives.json', './data/ko-stats.json'];
 async function fetchJSON(path) {
   // Respect browser HTTP caching: no-cache revalidated multi-megabyte trees on every visit.
   const response = await fetch(path);
@@ -22,8 +22,9 @@ async function loadTranslations() {
   const responses = await Promise.allSettled(localeDataFiles.map(fetchJSON));
   const base = responses[0].status === 'fulfilled' ? responses[0].value : {};
   const extended = responses[1].status === 'fulfilled' ? responses[1].value : {};
-  // Existing PoE2DB names take priority where two Korean sources disagree.
-  localeCatalog = { names: { ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(base.stats || {}) } };
+  const generated = responses[2].status === 'fulfilled' ? responses[2].value : {};
+  // Existing verified game names win over fallback dictionaries.
+  localeCatalog = { names: { ...(generated.names || {}), ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(generated.stats || {}), ...(base.stats || {}) } };
   if (responses.every(r => r.status === 'rejected')) console.warn('Korean language files were unavailable.', responses.map(r => r.reason));
   if (tree && renderer) {
     populateClasses(); populateAscendancies();
