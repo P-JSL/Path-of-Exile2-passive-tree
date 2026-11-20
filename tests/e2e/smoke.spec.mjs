@@ -102,6 +102,14 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
   await selector.selectOption('1');
   await expect(page.locator('#allocate-button')).toBeDisabled();
   await selector.selectOption('all');
+  if (isMobile) await page.locator('#mobile-details').click();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('#pob-delete').click();
+  await expect(page.locator('#pob-overview')).toHaveAttribute('hidden', '');
+  await expect(page.locator('#pob-jewel-detail')).toHaveAttribute('hidden', '');
+  await expect(page.locator('#weapon-set-controls')).toHaveAttribute('hidden', '');
+  await expect(page.locator('#pob-weapon-view')).toHaveValue('all');
+  expect(await page.evaluate(()=>localStorage.getItem('exile-tree-pob2-source-v1'))).toBeNull();
   expect(errors).toEqual([]);
 });
 
