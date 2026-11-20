@@ -147,7 +147,7 @@ function translateEffectTarget(s,dict) {
 }
 function applyNumericTemplates(line,dict) {
   let m;
-  const v='([+-]?\d+(?:\.\d+)?)';
+  const v=String.raw`([+-]?\d+(?:\.\d+)?)`;
   m=new RegExp('^\\+'+v+' to maximum (Life|Mana|Energy Shield)$','i').exec(line);
   if(m)return '최대 '+translateEffectTarget(m[2],dict)+' +'+m[1];
   m=new RegExp('^\\+'+v+' to (Fire|Cold|Lightning|Chaos) Resistance$','i').exec(line);
