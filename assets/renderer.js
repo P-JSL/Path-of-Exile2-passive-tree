@@ -1,6 +1,7 @@
 import { getBounds } from './tree-model.js';
 import { clampTreeViewport } from './viewport-limits.js';
 import { ViewportIndex } from './spatial-index.js';
+import { useNormalNodeBatching, normalNodePaint } from './render-quality.js';
 import { iconSpriteKey, nodeFrameKey, drawAtlasFrame, loadVisualAtlases, loadClassArt } from './visual-assets.js';
 
 export class TreeRenderer {
@@ -222,8 +223,47 @@ export class TreeRenderer {
       if (n.x < left - 500 || n.x > right + 500 || n.y < top - 500 || n.y > bottom + 500) continue;
       (n.category === 'normal' ? normal : special).push(n);
     }
-    for (const n of normal) this.drawNode(n);
+    if (useNormalNodeBatching(this.zoom, this.isInteracting, typeof Path2D !== 'undefined'))
+      this.drawNormalsBatched(normal);
+    else for (const n of normal) this.drawNode(n);
     for (const n of special) this.drawNode(n);
+  }
+  /** Preserve all low-zoom normal nodes but draw shared colors in a few paths. */
+  drawNormalsBatched(nodes) {
+    const groups = new Map(), individual = [];
+    const radius = Math.max(1.2, Math.min(9, this.zoom * 21));
+    for (const node of nodes) {
+      const allocated = this.allocated.has(node.id);
+      if (node.id === this.selectedId || this.searchMatches.has(node.id) ||
+          this.previewPath.has(node.id) ||
+          (allocated && this.zoom >= .065)) {
+        individual.push(node);
+        continue;
+      }
+      const dimmed = this.searchActive && !allocated;
+      const paint = normalNodePaint(node, allocated, dimmed, this.lockedOracle);
+      const key = paint.fill + ':' + paint.stroke + ':' + paint.alpha;
+      let group = groups.get(key);
+      if (!group) {
+        group = {path:new Path2D(), paint};
+        groups.set(key, group);
+      }
+      const p = this.toScreen(node.x, node.y);
+      group.path.moveTo(p.x + radius, p.y);
+      group.path.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    }
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.lineWidth = .9;
+    for (const group of groups.values()) {
+      ctx.globalAlpha = group.paint.alpha;
+      ctx.fillStyle = group.paint.fill;
+      ctx.strokeStyle = group.paint.stroke;
+      ctx.fill(group.path);
+      ctx.stroke(group.path);
+    }
+    ctx.restore();
+    for (const node of individual) this.drawNode(node);
   }
   drawNode(n) {
     const ctx = this.ctx, p = this.toScreen(n.x, n.y);
