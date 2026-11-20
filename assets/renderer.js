@@ -34,6 +34,7 @@ export class TreeRenderer {
     this.rootIds = new Set(Array.isArray(options.rootId) ? options.rootId : [options.rootId]);
     this.lockedOracle = !!options.lockedOracle;
     this.selectedId = options.selectedId ?? null;
+    this.localizeName = options.localizeName ?? (n => n.name);
     this.searchMatches = options.searchMatches ?? new Set();
     this.fitAll();
   }
@@ -42,6 +43,7 @@ export class TreeRenderer {
     if ('selectedId' in options) this.selectedId = options.selectedId;
     if ('lockedOracle' in options) this.lockedOracle = options.lockedOracle;
     if (options.searchMatches) this.searchMatches = options.searchMatches;
+    if (options.localizeName) this.localizeName = options.localizeName;
     this.schedule();
   }
   resize() {
@@ -169,7 +171,7 @@ export class TreeRenderer {
     ctx.fill(); ctx.stroke();
     if (noteworthy && radius >= 4.5) { ctx.beginPath(); ctx.arc(p.x, p.y, radius * .44, 0, Math.PI * 2); ctx.fillStyle = allocated ? '#10241c' : color + 'b0'; ctx.fill(); }
     if (this.zoom >= .2 && (n.category === 'keystone' || n.category === 'start')) {
-      ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e9dbbb'; ctx.fillText(n.name, p.x, p.y - radius - 10);
+      ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e9dbbb'; ctx.fillText(this.localizeName(n), p.x, p.y - radius - 10);
     }
     ctx.globalAlpha = 1;
   }
