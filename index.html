@@ -69,7 +69,11 @@
       <main class="stage" aria-label="패시브 트리 지도" data-i18n-aria="mainAria">
         <div class="stage-header">
           <div><div id="stage-eyebrow" class="eyebrow">FULL PASSIVE SKILL TREE</div><h1 id="stage-title">패시브 트리</h1><p id="stage-subtitle">노드를 누르면 효과를 볼 수 있습니다.</p></div>
-          <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
+          <div class="stage-tools">
+            <button type="button" id="toggle-filters" class="stage-tool" aria-controls="sidebar" aria-expanded="true" data-i18n="hideFilters">필터 접기</button>
+            <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
+            <button type="button" id="toggle-details" class="stage-tool" aria-controls="details-panel" aria-expanded="true" data-i18n="hideDetails">정보 접기</button>
+          </div>
         </div>
         <div id="canvas-wrap" class="canvas-wrap">
           <canvas id="tree-canvas" aria-label="패시브 트리 지도. 손가락으로 이동하고 두 손가락으로 확대할 수 있습니다." data-i18n-aria="canvasAria"></canvas>
