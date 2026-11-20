@@ -1,4 +1,5 @@
 import { getBounds } from './tree-model.js';
+import { ViewportIndex } from './spatial-index.js';
 import { iconSpriteKey, nodeFrameKey, drawAtlasFrame, loadVisualAtlases, loadClassArt } from './visual-assets.js';
 
 export class TreeRenderer {
@@ -10,6 +11,8 @@ export class TreeRenderer {
     this.nodes = [];
     this.edges = [];
     this.nodeMap = new Map();
+    this.viewportIndex = null;
+    this.isInteracting = false;
     this.allocated = new Set();
     this.zoom = .03; this.centerX = 0; this.centerY = 0;
     this.width = 0; this.height = 0; this.selectedId = null; this.searchMatches = new Set();
@@ -40,11 +43,14 @@ export class TreeRenderer {
       return a && b && Math.hypot(a.x - b.x, a.y - b.y) <= 3000;
     });
     this.orbitRadii = options.orbitRadii ?? [];
+    this.viewportIndex = new ViewportIndex(this.nodes, this.edges, this.nodeMap, this.orbitRadii);
     this.mode = options.mode || 'passive';
     this.classStart = options.classStart ?? null;
     this.loadBackground(options.className);
     this.allocated = options.allocated ?? new Set();
     this.rootIds = new Set(Array.isArray(options.rootId) ? options.rootId : [options.rootId]);
+    this.rootNeighborIds = new Set([...this.rootIds].flatMap(id =>
+      (this.nodeMap.get(id)?.connections || []).map(link => Number(link.id))));
     this.lockedOracle = !!options.lockedOracle;
     this.selectedId = options.selectedId ?? null;
     this.localizeName = options.localizeName ?? (n => n.name);
@@ -86,10 +92,10 @@ export class TreeRenderer {
   }
   resize() {
     const rect = this.canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    if (!rect.width || !rect.height || (this.width === rect.width && this.height === rect.height)) return;
     const prevWidth = this.width;
     this.width = rect.width; this.height = rect.height;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, this.isTouch ? 1.5 : 2);
     this.canvas.width = Math.round(rect.width * dpr);
     this.canvas.height = Math.round(rect.height * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -121,12 +127,7 @@ export class TreeRenderer {
   nearest(px, py) {
     const target = this.toWorld(px, py);
     const limit = (this.isTouch ? 20 : 13) / this.zoom;
-    let winner = null, smallest = limit * limit;
-    for (const n of this.nodes) {
-      const dx = n.x - target.x, dy = n.y - target.y, dist = dx * dx + dy * dy;
-      if (dist < smallest) { smallest = dist; winner = n; }
-    }
-    return winner;
+    return this.viewportIndex?.nearest(target.x, target.y, limit) ?? null;
   }
   schedule() {
     if (this.pendingDraw) return;
@@ -151,7 +152,7 @@ export class TreeRenderer {
     // Each connection uses actual source and target skill IDs; nonzero orbit edges curve.
     const d = this.zoom;
     ctx.lineWidth = Math.max(.65, Math.min(2.8, .9 + d * 2));
-    for (const edge of this.edges) {
+    for (const edge of this.viewportIndex.visibleEdges(left, top, right, bottom, 500)) {
       const a = this.nodeMap.get(edge.a), b = this.nodeMap.get(edge.b);
       if ((a.x < left - 500 && b.x < left - 500) || (a.x > right + 500 && b.x > right + 500) || (a.y < top - 500 && b.y < top - 500) || (a.y > bottom + 500 && b.y > bottom + 500)) continue;
       const p = this.toScreen(a.x, a.y), q = this.toScreen(b.x, b.y);
@@ -159,28 +160,27 @@ export class TreeRenderer {
       const selected = a.id === this.selectedId || b.id === this.selectedId;
       // Unallocated edges stay understated at full-tree zoom; active/selected paths stand out.
       ctx.strokeStyle = activated ? '#69baa9' : selected ? '#b8a174bb' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
-      ctx.beginPath(); ctx.moveTo(p.x, p.y);
-      const radius = (this.orbitRadii[Math.abs(edge.orbit)] || 0) * this.zoom;
-      if (edge.orbit && radius > 0) {
-        const dx = q.x - p.x, dy = q.y - p.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > .000001 && dist < radius * 2) {
-          // Match the game's circular orbit connector instead of an approximate Bezier.
-          const perpendicular = Math.sqrt(Math.max(0, radius * radius - dist * dist / 4)) * Math.sign(edge.orbit);
-          const cx = (p.x + q.x) / 2 + perpendicular * dy / dist;
-          const cy = (p.y + q.y) / 2 - perpendicular * dx / dist;
-          const start = Math.atan2(p.y - cy, p.x - cx);
-          const end = Math.atan2(q.y - cy, q.x - cx);
-          let sweep = end - start;
-          if (sweep > Math.PI) sweep -= Math.PI * 2;
-          if (sweep < -Math.PI) sweep += Math.PI * 2;
-          ctx.arc(cx, cy, radius, start, start + sweep, sweep < 0);
-        } else ctx.lineTo(q.x, q.y);
-      } else ctx.lineTo(q.x, q.y);
+      ctx.beginPath();
+      const sameOrbit = edge.orbit && a.group === b.group && a.orbit === b.orbit &&
+        Number.isFinite(a.groupX) && Number.isFinite(a.groupY);
+      const radius = (this.orbitRadii[a.orbit] || 0) * this.zoom;
+      if (sameOrbit && radius > 0) {
+        // Use the exported group centre. A chord-derived centre can select the
+        // wrong side of a circle and draw a connector through unrelated nodes.
+        const center = this.toScreen(a.groupX, a.groupY);
+        const start = Math.atan2(p.y - center.y, p.x - center.x);
+        const end = Math.atan2(q.y - center.y, q.x - center.x);
+        let sweep = end - start;
+        if (sweep > Math.PI) sweep -= Math.PI * 2;
+        if (sweep < -Math.PI) sweep += Math.PI * 2;
+        ctx.arc(center.x, center.y, radius, start, start + sweep, sweep < 0);
+      } else {
+        ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+      }
       ctx.stroke();
     }
     const normal = [], special = [];
-    for (const n of this.nodes) {
+    for (const n of this.viewportIndex.visibleNodes(left, top, right, bottom, 500)) {
       if (n.x < left - 500 || n.x > right + 500 || n.y < top - 500 || n.y > bottom + 500) continue;
       (n.category === 'normal' ? normal : special).push(n);
     }
@@ -225,11 +225,13 @@ export class TreeRenderer {
   }
   drawOfficialNode(n, position, allocated) {
     if (!this.art || !n.icon || n.isOnlyImage || this.zoom < .065) return false;
+    // Keep touch dragging fluid; the full sprites return immediately on release.
+    if (this.isInteracting && this.zoom < .28 &&
+        !this.allocated.has(n.id) && n.id !== this.selectedId) return false;
     const size = this.zoom * (n.category === 'keystone' ? 240 :
       n.category === 'notable' ? 174 : n.category === 'socket' ? 138 : 118);
     if (size < 6) return false;
-    const frame = nodeFrameKey(n, allocated, !allocated && [...(this.rootIds || [])]
-      .some(id => this.nodeMap.get(id) && (this.nodeMap.get(id).connections || []).some(link => Number(link.id) === n.id)));
+    const frame = nodeFrameKey(n, allocated, !allocated && this.rootNeighborIds.has(n.id));
     const source = iconSpriteKey(n);
     const iconExists = !!this.art.skills.frames?.[source];
     if (!iconExists) return false;
@@ -244,6 +246,7 @@ export class TreeRenderer {
     const c = this.canvas;
     c.addEventListener('pointerdown', e => {
       e.preventDefault(); c.setPointerCapture(e.pointerId);
+      this.isInteracting = true;
       const p = this.eventPosition(e); this.pointerMap.set(e.pointerId, p);
       if (this.pointerMap.size === 1) this.pointerStart = { ...p, centerX: this.centerX, centerY: this.centerY, moved: false };
       if (this.pointerMap.size === 2) {
@@ -276,8 +279,15 @@ export class TreeRenderer {
       if (!this.pointerMap.has(e.pointerId)) return;
       const position = this.eventPosition(e), clicked = this.pointerMap.size === 1 && this.pointerStart && !this.pointerStart.moved;
       this.pointerMap.delete(e.pointerId);
-      if (!this.pointerMap.size) { this.pinchStart = null; this.pointerStart = null; }
-      else { this.pinchStart = null; this.pointerStart = null; }
+      if (!this.pointerMap.size) {
+        this.pinchStart = null; this.pointerStart = null; this.isInteracting = false;
+        this.schedule();
+      } else {
+        // After a two-finger pinch, the remaining finger can keep panning.
+        const remaining = [...this.pointerMap.values()][0];
+        this.pinchStart = null;
+        this.pointerStart = { ...remaining, centerX: this.centerX, centerY: this.centerY, moved: true };
+      }
       if (clicked && e.type === 'pointerup') this.callbacks.onSelect(this.nearest(position.x, position.y), e);
     };
     c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
