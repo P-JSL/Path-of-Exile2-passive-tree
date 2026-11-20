@@ -216,3 +216,8 @@
  color:#bcebdc;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
  max-width:min(420px,85%);word-wrap:break-word}
 @media(max-width:850px){.perf-hud{right:9px;bottom:45px;font-size:10px}}
+
+.pob-jewel-detail{margin:12px 0;padding:12px;border:1px solid #716294;border-radius:7px;background:#222035}
+.pob-jewel-detail strong{color:#d4beef;font-size:12px}
+.pob-jewel-detail pre{color:#d7d5e7;font:11px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
+ white-space:pre-wrap;overflow-wrap:anywhere;max-height:270px;overflow-y:auto;margin:9px 0 0}
