@@ -32,6 +32,13 @@ try {
 console.log('Korean upstream examples: ' + JSON.stringify(Object.entries(upstream).slice(0, 6)));
 console.log('Korean upstream shock-related examples: ' + JSON.stringify(Object.entries(upstream).filter(([en]) => en.toLowerCase().includes('shock')).slice(0, 7)));
 // Match the bilingual game tree by native skill ID and source English text.
+// Inspect one glossary entry to derive a stable, dependency-free parser.
+try {
+  const response = await fetch('https://poe2db.tw/kr/Keywords', {signal:AbortSignal.timeout(10000)});
+  const html = await response.text();
+  const anchors = [...html.matchAll(/<a\s+href="Shock"[^>]*>/g)].slice(0,4).map(m => ({at:m.index, markup: html.slice(Math.max(0,m.index-210),m.index+2400)}));
+  console.log('GLOSSARY_SHOCK_SAMPLE ' + JSON.stringify(anchors).slice(0,9000));
+} catch (error) { console.warn('GLOSSARY_SHOCK_SAMPLE unavailable:', error.message); }
 const poe2db = {};
 async function fetchTree(uri) {
   const response = await fetch(uri, {headers:{Referer:'https://poe2db.tw/','User-Agent':'Mozilla/5.0'}, signal:AbortSignal.timeout(12000)});
