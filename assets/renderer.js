@@ -1,4 +1,5 @@
 import { getBounds } from './tree-model.js';
+import { clampTreeViewport } from './viewport-limits.js';
 import { ViewportIndex } from './spatial-index.js';
 import { iconSpriteKey, nodeFrameKey, drawAtlasFrame, loadVisualAtlases, loadClassArt } from './visual-assets.js';
 
@@ -36,6 +37,7 @@ export class TreeRenderer {
   setScene(nodes, allEdges, options = {}) {
     this.nodes = nodes;
     this.nodeMap = new Map(nodes.map(n => [n.id, n]));
+    this.worldBounds = getBounds(nodes, 400);
     // Long-distance logical links (class → separate ascendancy tree, Pathfinder portals)
     // are not visible map connectors. Keep them in the model for path logic.
     this.edges = allEdges.filter(e => {
@@ -101,6 +103,7 @@ export class TreeRenderer {
     if (!rect.width || !rect.height || (this.width === rect.width && this.height === rect.height)) return;
     const prevWidth = this.width;
     this.width = rect.width; this.height = rect.height;
+    this.constrainView();
     const dpr = Math.min(window.devicePixelRatio || 1, this.isTouch ? 1.5 : 2);
     this.canvas.width = Math.round(rect.width * dpr);
     this.canvas.height = Math.round(rect.height * dpr);
@@ -114,11 +117,18 @@ export class TreeRenderer {
     if (this.width && this.height) {
       this.zoom = Math.max(.012, Math.min(1.8, Math.min((this.width - 35) / Math.max(box.maxX - box.minX, 1), (this.height - 35) / Math.max(box.maxY - box.minY, 1))));
     }
+    this.constrainView();
     this.schedule();
+  }
+  constrainView() {
+    const p = clampTreeViewport(this.worldBounds, this.centerX, this.centerY,
+      this.width, this.height, this.zoom);
+    this.centerX = p.x; this.centerY = p.y;
   }
   focus(x, y, zoom = null) {
     this.centerX = x; this.centerY = y;
     if (zoom !== null) this.zoom = Math.max(.012, Math.min(3, zoom));
+    this.constrainView();
     this.schedule();
   }
   zoomBy(factor, px = this.width / 2, py = this.height / 2) {
@@ -126,6 +136,7 @@ export class TreeRenderer {
     this.zoom = Math.max(.012, Math.min(3, this.zoom * factor));
     this.centerX = point.x - (px - this.width / 2) / this.zoom;
     this.centerY = point.y - (py - this.height / 2) / this.zoom;
+    this.constrainView();
     this.schedule();
   }
   toWorld(px, py) { return { x: this.centerX + (px - this.width / 2) / this.zoom, y: this.centerY + (py - this.height / 2) / this.zoom }; }
@@ -329,12 +340,14 @@ export class TreeRenderer {
         const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
         this.centerX = this.pinchStart.point.x - (midX - this.width / 2) / this.zoom;
         this.centerY = this.pinchStart.point.y - (midY - this.height / 2) / this.zoom;
+        this.constrainView();
         this.schedule();
       } else if (this.pointerMap.size === 1 && this.pointerStart) {
         const dx = p.x - this.pointerStart.x, dy = p.y - this.pointerStart.y;
         if (Math.hypot(dx, dy) > 7) this.pointerStart.moved = true;
         this.centerX = this.pointerStart.centerX - dx / this.zoom;
         this.centerY = this.pointerStart.centerY - dy / this.zoom;
+        this.constrainView();
         this.schedule();
       }
     });
