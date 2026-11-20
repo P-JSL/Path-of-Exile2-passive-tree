@@ -236,3 +236,40 @@ test('passive Canvas retains visible tree pixels during repeated drag/zoom/fit g
   await expect.poll(()=>countVisiblePassivePixels(canvas),{timeout:10000}).toBeGreaterThan(40);
   expect(runtimeErrors).toEqual([]);
 });
+
+
+test('search and allocated-item clicks highlight instantly without recentering or zooming', async ({page, isMobile}) => {
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+
+  // Observe the real renderer's viewport at each selection update.
+  await page.evaluate(async()=>{
+    const {TreeRenderer}=await import('/assets/renderer.js');
+    const originalUpdate=TreeRenderer.prototype.update;
+    window.__selectionViewports=[];
+    TreeRenderer.prototype.update=function(options){
+      window.__selectionViewports.push({x:this.centerX,y:this.centerY,zoom:this.zoom});
+      return originalUpdate.call(this,options);
+    };
+  });
+  await page.locator('#zoom-in').click();
+  if(isMobile) await page.locator('#mobile-search').click();
+  await page.locator('#search-input').fill('fire');
+  await expect(page.locator('.result-item').nth(1)).toBeVisible();
+  const before=await page.evaluate(()=>window.__selectionViewports.at(-1));
+  expect(before?.zoom).toBeGreaterThan(0);
+
+  const first=page.locator('.result-item').first();
+  const id=await first.getAttribute('data-node-id');
+  await first.click();
+  await expect(page.locator('#detail-id')).toHaveText(id);
+  const after=await page.evaluate(()=>window.__selectionViewports.at(-1));
+  expect(after).toEqual(before);
+
+  await page.locator('#search-next').click();
+  const afterNext=await page.evaluate(()=>window.__selectionViewports.at(-1));
+  expect(afterNext).toEqual(before);
+  expect(errors).toEqual([]);
+});

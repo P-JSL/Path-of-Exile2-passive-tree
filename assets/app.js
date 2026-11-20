@@ -580,7 +580,9 @@ function selectSearchNode(id) {
   const n = activeTree().nodes.get(id); if (!n) return;
   state.selectedId = n.id;
   searchIndex = searchResults.findIndex(entry => entry.id === n.id);
-  renderer.focus(n.x, n.y, Math.max(renderer.zoom, .34));
+  // Searching or selecting an allocated passive updates details/highlighting
+  // in place. Never hijack the user's pan/zoom state; the dedicated
+  // "Focus start" and "Fit all" controls are the only viewport resets.
   renderer.update({ selectedId:id });
   showDetail(n); renderAllocatedList();
   updateSearchNavigator();
