@@ -29,8 +29,12 @@ jobs:
           node --check assets/renderer.js
           node --check assets/tree-model.js
           node --check assets/extra-model.js
+          node --check assets/attributes.js
+          node --check scripts/build-ko-stats.mjs
           node scripts/validate.mjs
           node --test tests/*.test.mjs
+      - name: Build bundled Korean stat translations
+        run: node scripts/build-ko-stats.mjs
       - name: Bust browser cache for the validated application entry point
         run: |
           sed -i 's@src="./assets/app.js"@src="./assets/app.js?v='${GITHUB_SHA}'"@' index.html
