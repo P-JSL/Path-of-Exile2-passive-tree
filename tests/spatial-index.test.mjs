@@ -23,3 +23,12 @@ test('straight links crossing viewport are still visible with offscreen endpoint
   const index=new ViewportIndex([a,b],[e],new Map([[1,a],[2,b]]),[],500);
   assert.equal(index.visibleEdges(-30,-30,30,30).has(e),true);
 });
+
+test('a full-world query returns every indexed node and connection without scanning empty cells',()=>{
+  const nodes=[{id:1,x:-100,y:-100},{id:2,x:900,y:100}];
+  const edge={a:1,b:2,orbit:0};
+  const index=new ViewportIndex(nodes,[edge],new Map(nodes.map(n=>[n.id,n])),[],200);
+  assert.equal(index.visibleNodes(-100000,-100000,100000,100000).size,2);
+  assert.equal(index.visibleEdges(-100000,-100000,100000,100000).has(edge),true);
+  assert.equal(index.visibleNodes(100000,100000,200000,200000).size,0);
+});
