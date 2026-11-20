@@ -16,7 +16,7 @@ let glossaryPromise = null;
 function loadKeywordGlossary() {
   if (!glossaryPromise) {
     // Version the separately generated dictionary alongside the deployed app.
-    const revision = new URL(import.meta.url).searchParams.get('v');
+    const revision = APP_REVISION;
     const path = './data/keyword-notes.json' + (revision ? '?v=' + encodeURIComponent(revision) : '');
     glossaryPromise = fetchJSON(path).catch(error => {
       console.warn('Optional keyword glossary unavailable:', error);
@@ -25,7 +25,9 @@ function loadKeywordGlossary() {
   }
   return glossaryPromise;
 }
-const localeDataFiles = ['./data/ko.json', './data/ko-passives.json', './data/ko-stats.json'];
+const APP_REVISION = new URL(import.meta.url).searchParams.get('v');
+const localeDataFiles = ['./data/ko.json', './data/ko-passives.json', './data/ko-stats.json']
+  .map(path => APP_REVISION ? path + '?v=' + encodeURIComponent(APP_REVISION) : path);
 async function fetchJSON(path) {
   // Respect browser HTTP caching: no-cache revalidated multi-megabyte trees on every visit.
   const response = await fetch(path);
