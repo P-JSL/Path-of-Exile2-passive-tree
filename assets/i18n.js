@@ -83,7 +83,7 @@ const STRINGS = {
     pobRemove:'Remove source',pobConfirm:'Replace this class’s existing passive allocation with the PoB2 build?',
     pobImported:'PoB2 build imported.',pobMissing:'{count} passive IDs are absent from this tree version and were not allocated.',
     pobIncompatible:'{count} passives belong to another Ascendancy and were excluded.',
-    pobReadOnly:'Skills, gear and configuration show the original PoB2 data. PoB's calculation engine and weapon-set allocation constraints are not executed. Gold=W1, violet=W2; edits here do not change the original code.',
+    pobReadOnly:'Skills, gear and configuration show the original PoB2 data. The PoB calculation engine and weapon-set allocation constraints are not executed. Gold=W1, violet=W2; edits here do not change the original code.',
     pobSkills:'Skills and gems',pobItems:'Equipment',pobJewels:'Socketed passive jewels',pobNoJewels:'No socketed jewels.',pobConfig:'Configuration',pobStats:'PoB calculation snapshot',pobNotes:'Build notes',
     pobOriginalCopied:'Original PoB2 code copied.',pobDeleteConfirm:'Delete the saved original PoB2 code? (Keep passive allocations)',
     pobNoGear:'No equipped items.',pobNoSkills:'No skill groups.',pobNoConfig:'No configuration inputs.',
