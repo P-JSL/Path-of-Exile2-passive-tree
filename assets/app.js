@@ -2,6 +2,7 @@ import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } fro
 import { TreeRenderer } from './renderer.js';
 import { buildExtraTree } from './extra-model.js';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, tr, passiveName, passiveStat } from './i18n.js';
+import { ATTRIBUTES, isAnyAttributeNode, selectedAttributeStat, validAttributeChoices, encodeAttributeChoices, decodeAttributeChoices } from './attributes.js';
 
 const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
@@ -45,12 +46,19 @@ function updateDataSummary() {
   const format = x => Number(x || 0).toLocaleString(state.language);
   $('data-summary').textContent = t('summary', { nodes: format(tree.nodes.size), asc: tree.ascendancies.length, atlas: format(extraTrees.atlas?.nodes.size), genesis: format(extraTrees.genesis?.nodes.size) });
 }
-const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {} };
+const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {} };
 let currentNodes = [], currentIds = new Set();
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
 const localName = item => passiveName(typeof item === 'string' ? item : item?.name, state.language, localeCatalog);
 const localStat = line => passiveStat(line, state.language, localeCatalog);
+function attributeSelection(id) {
+  if (state.mode !== 'passive') return '';
+  return state.attributeChoices[state.className]?.[id] || '';
+}
+function localNodeStat(n, line) {
+  return selectedAttributeStat(line, attributeSelection(n.id), state.language) || localStat(line);
+}
 function applyLanguageText() {
   document.documentElement.lang = state.language;
   document.title = t('docTitle');
@@ -72,6 +80,7 @@ function loadSaved() {
       state.allocations = validAllocationRecord(saved.allocations);
       state.ascAllocations = validAllocationRecord(saved.ascAllocations);
       state.extraAllocations = validAllocationRecord(saved.extraAllocations);
+      state.attributeChoices = validAttributeChoices(saved.attributeChoices);
       if (saved.className && typeof saved.className === 'string') state.className = saved.className;
       if (saved.ascendancy && typeof saved.ascendancy === 'string') state.ascendancy = saved.ascendancy;
       if (VALID_MODES.includes(saved.mode)) state.mode = saved.mode;
@@ -91,6 +100,7 @@ function loadSaved() {
     state.allocations[state.className] = hash.get('p')?.split('.').map(Number).filter(Number.isSafeInteger) ?? [];
     state.ascAllocations[state.ascendancy] = hash.get('a')?.split('.').map(Number).filter(Number.isSafeInteger) ?? [];
     if (state.mode === 'atlas' || state.mode === 'genesis') state.extraAllocations[state.mode] = hash.get('x')?.split('.').map(Number).filter(Number.isSafeInteger) ?? [];
+    if (hash.has('c')) state.attributeChoices[state.className] = decodeAttributeChoices(hash.get('c'), state.allocations[state.className]);
   }
 }
 function validAllocationRecord(input) {
@@ -100,7 +110,7 @@ function validAllocationRecord(input) {
   return out;
 }
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify({ className: state.className, ascendancy: state.ascendancy, mode: state.mode, showOracle: state.showOracle, language: state.language, allocations: state.allocations, ascAllocations: state.ascAllocations, extraAllocations: state.extraAllocations })); } catch { /* no-op */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ className: state.className, ascendancy: state.ascendancy, mode: state.mode, showOracle: state.showOracle, language: state.language, allocations: state.allocations, ascAllocations: state.ascAllocations, extraAllocations: state.extraAllocations, attributeChoices: state.attributeChoices })); } catch { /* no-op */ }
 }
 function isExtraMode() { return state.mode === 'atlas' || state.mode === 'genesis'; }
 function activeTree() { return isExtraMode() ? extraTrees[state.mode] : tree; }
@@ -125,6 +135,10 @@ function saveAllocated(set) {
   const record = state.mode === 'passive' ? state.allocations : state.mode === 'ascendancy' ? state.ascAllocations : state.extraAllocations;
   const key = state.mode === 'passive' ? state.className : state.mode === 'ascendancy' ? state.ascendancy : state.mode;
   record[key] = [...set];
+  if (state.mode === 'passive') {
+    const selected = state.attributeChoices[state.className];
+    if (selected) for (const id of Object.keys(selected)) if (!set.has(Number(id))) delete selected[id];
+  }
   persist(); updatePoints(); renderAllocatedList();
 }
 function oracleUnlocked() { return (state.ascAllocations.Oracle || []).includes(5571); }
@@ -222,7 +236,10 @@ function renderAllocatedList() {
       b.append(title, type);
       if (node.stats?.length) {
         const stat = document.createElement('span'); stat.className = 'allocated-item-desc';
-        stat.textContent = node.stats.slice(0, 2).map(localStat).join('\n'); b.append(stat);
+        stat.textContent = node.stats.slice(0, 2).map(line => group.mode === 'passive' ? (selectedAttributeStat(line, state.attributeChoices[state.className]?.[id], state.language) || localStat(line)) : localStat(line)).join('\n'); b.append(stat);
+      }
+      if (group.mode === 'passive' && isAnyAttributeNode(node) && !state.attributeChoices[state.className]?.[id]) {
+        const missing = document.createElement('span'); missing.className = 'allocated-item-meta missing-attribute'; missing.textContent = t('attributeUnset'); b.append(missing);
       }
       b.addEventListener('click', async () => {
         if (state.mode !== group.mode && !(await selectMode(group.mode))) return;
@@ -264,8 +281,18 @@ function showDetail(n) {
   const lines = n.stats.length ? n.stats : [t('noStats')];
   for (const line of lines) {
     const p = document.createElement('p'); p.className = 'stat-line';
-    p.textContent = n.stats.length ? localStat(line) : line;
+    p.textContent = n.stats.length ? localNodeStat(n, line) : line;
     $('detail-stats').append(p);
+  }
+  const control = $('attribute-control');
+  const choice = $('attribute-select');
+  const selectable = state.mode === 'passive' && isAnyAttributeNode(n);
+  control.hidden = !selectable;
+  if (selectable) {
+    const allocatedNow = allocatedSet().has(n.id);
+    choice.value = attributeSelection(n.id);
+    choice.disabled = !allocatedNow;
+    $('attribute-hint').hidden = allocatedNow;
   }
   $('detail-id').textContent = String(n.id);
   const notice = $('detail-notice'); notice.hidden = true;
@@ -344,7 +371,14 @@ function focusStart() {
 function sharePlan() {
   const url = new URL(location.href); url.search = '';
   url.searchParams.set('lang', state.language); url.searchParams.set('class', state.className); url.searchParams.set('asc', state.ascendancy); url.searchParams.set('view', state.mode);
-  url.hash = new URLSearchParams({ p: (state.allocations[state.className] || []).join('.'), a: (state.ascAllocations[state.ascendancy] || []).join('.'), x: isExtraMode() ? (state.extraAllocations[state.mode] || []).join('.') : '' }).toString();
+
+  // Encoded attribute choices are scoped to the selected class and allocated node IDs.
+  url.hash = new URLSearchParams({
+    p: (state.allocations[state.className] || []).join('.'),
+    a: (state.ascAllocations[state.ascendancy] || []).join('.'),
+    x: isExtraMode() ? (state.extraAllocations[state.mode] || []).join('.') : '',
+    c: encodeAttributeChoices(state.attributeChoices[state.className], state.allocations[state.className] || [])
+  }).toString();
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(url.href).then(() => toast(t('shareCopied')), () => showCopyFallback(url.href));
   } else showCopyFallback(url.href);
@@ -383,6 +417,16 @@ function wireUI() {
   $('search-input').addEventListener('input', e => { state.search = e.target.value; refreshSearch(); });
   $('search-clear').addEventListener('click', () => { $('search-input').value = ''; state.search = ''; refreshSearch(); });
   $('allocate-button').addEventListener('click', toggleAllocation);
+  $('attribute-select').addEventListener('change', e => {
+    const id = state.selectedId, node = activeTree()?.nodes.get(id);
+    if (state.mode !== 'passive' || !node || !isAnyAttributeNode(node) || !allocatedSet().has(id)) return;
+    const choice = e.target.value;
+    if (choice && !ATTRIBUTES.includes(choice)) return;
+    state.attributeChoices[state.className] ||= {};
+    if (choice) state.attributeChoices[state.className][id] = choice;
+    else delete state.attributeChoices[state.className][id];
+    persist(); showDetail(node); renderAllocatedList();
+  });
   $('zoom-in').addEventListener('click', () => renderer.zoomBy(1.5));
   $('zoom-out').addEventListener('click', () => renderer.zoomBy(1 / 1.5));
   $('fit-all').addEventListener('click', () => renderer.fitAll());
