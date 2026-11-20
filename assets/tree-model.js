@@ -108,6 +108,9 @@ export function pruneAllocations(tree, allocated, rootId, sceneIds) {
       if (!visited.has(next) && sceneIds.has(next) && allocated.has(next)) { visited.add(next); queue.push(next); }
     }
   }
-  const result = new Set([...allocated].filter(id => visited.has(id) && !roots.includes(id)));
+  // Game-defined free allocations may have no physical edge (e.g. Sacred Unity).
+  // Retain them on graph refunds; their prerequisites are audited separately.
+  const result = new Set([...allocated].filter(id =>
+    (visited.has(id) || tree.nodes.get(id)?.isFreeAllocate) && !roots.includes(id)));
   return { result, removed: allocated.size - result.size };
 }
