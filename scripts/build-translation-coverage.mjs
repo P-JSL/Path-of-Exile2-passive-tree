@@ -5,7 +5,7 @@
  */
 import {readFileSync,writeFileSync} from 'node:fs';
 import {passiveName,passiveStat} from '../assets/i18n.js';
-import {auditTranslationRows,simplifyGameText} from './translation-coverage.mjs';
+import {auditTranslationRows,simplifyGameText,describeEffectSources} from './translation-coverage.mjs';
 
 const read = path => JSON.parse(readFileSync(path,'utf8'));
 const original=read('data/tree.json');
@@ -23,9 +23,10 @@ function sourceRows(nodes,extra=false) {
   return Object.values(nodes).map(node=>({
     id:Number(node.skill ?? node.hash),
     name:String(node.name || ''),
+    // Modifier identifiers are machine data, not English effect descriptions.
+    // Including them would incorrectly report 100% Korean translation coverage.
     stats:!extra ? (node.stats || []) :
-      node.stat_text?.length ? node.stat_text :
-      Object.entries(node.stats || {}).map(([key,value])=>key+': '+value)
+      (Array.isArray(node.stat_text) ? node.stat_text : [])
   }));
 }
 const modes={
@@ -48,12 +49,21 @@ for(const [mode,rows] of Object.entries(modes)) {
       const translated=direct[row.id]?.stats?.[index];
       return translated || passiveStat(simplifyGameText(row.stats[index]),'ko',catalog);
     });
-  report.modes[mode]=coverage;
+  const raw = mode === 'passive' ? original.nodes : mode === 'atlas' ? atlas.passives : genesis.passives;
+  const provenance=describeEffectSources(raw,mode !== 'passive');
+  report.modes[mode]={
+    ...coverage,
+    ...provenance,
+    effectTextStatus:coverage.statLines ? 'source-text-measured' :
+      provenance.internalKeyNodes ? 'internal-keys-only' : 'no-effect-text',
+    statCoveragePercent:coverage.statLines ? coverage.statCoveragePercent : null
+  };
   console.log('[Korean coverage] '+mode+': names '+
     coverage.translatedNames+'/'+coverage.namedNodes+
     ' ('+coverage.nameCoveragePercent+'%), effects '+
     coverage.translatedStats+'/'+coverage.statLines+
-    ' ('+coverage.statCoveragePercent+'%)');
+    (coverage.statLines ? ' ('+coverage.statCoveragePercent+'%)' :
+      ' (N/A: no human-readable source lines; internal-only nodes='+provenance.internalKeyNodes+')'));
 }
 writeFileSync('data/translation-coverage.json',JSON.stringify(report,null,2)+'\n','utf8');
 console.log('[Korean coverage] Unmatched originals saved to data/translation-coverage.json');
