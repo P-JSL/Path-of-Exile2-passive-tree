@@ -31,6 +31,17 @@ try {
 }
 console.log('Korean upstream examples: ' + JSON.stringify(Object.entries(upstream).slice(0, 6)));
 console.log('Korean upstream shock-related examples: ' + JSON.stringify(Object.entries(upstream).filter(([en]) => en.toLowerCase().includes('shock')).slice(0, 7)));
+// Probe the game database's Korean passive export; it may offer direct ID-based localization.
+try {
+  const uri = 'https://poe2db.tw/data/passive-skill-tree/4.5/data_kr.json';
+  const response = await fetch(uri, {headers:{Referer:'https://poe2db.tw/', 'User-Agent':'Mozilla/5.0'}, signal:AbortSignal.timeout(7000)});
+  console.log('PoE2DB Korean tree probe: ' + response.status + ' ' + (response.headers.get('content-length') || 'unknown-length'));
+  if (response.ok) {
+    const probe = await response.json();
+    console.log('PoE2DB Korean tree keys: ' + Object.keys(probe).slice(0,15).join(', '));
+    console.log('PoE2DB Korean example: ' + JSON.stringify(Object.values(probe.nodes || {})[0] || {}).slice(0,300));
+  }
+} catch (error) { console.log('PoE2DB Korean probe unavailable: ' + String(error)); }
 const templateLookup = new Map();
 for (const dict of [upstream, translate]) for (const [english, korean] of Object.entries(dict)) {
   if (typeof english !== 'string' || typeof korean !== 'string' || english === korean || !english || !korean) continue;
