@@ -32,6 +32,14 @@ try {
 console.log('Korean upstream examples: ' + JSON.stringify(Object.entries(upstream).slice(0, 6)));
 console.log('Korean upstream shock-related examples: ' + JSON.stringify(Object.entries(upstream).filter(([en]) => en.toLowerCase().includes('shock')).slice(0, 7)));
 // Match the bilingual game tree by native skill ID and source English text.
+if (process.env.CI) {
+  try {
+    const response = await fetch('https://poe2db.tw/kr/Keywords', {signal:AbortSignal.timeout(9000), headers:{'User-Agent':'Mozilla/5.0'}});
+    const html = await response.text();
+    const i = html.indexOf('감전');
+    console.log('GLOSSARY_HTML status=' + response.status + ',len=' + html.length + ',head=' + JSON.stringify(html.slice(0, 800)) + ',near=' + JSON.stringify(html.slice(Math.max(0,i-650),i+800)));
+  } catch (error) { console.log('GLOSSARY_HTML fetch failed: ' + String(error)); }
+}
 const poe2db = {};
 async function fetchTree(uri) {
   const response = await fetch(uri, {headers:{Referer:'https://poe2db.tw/','User-Agent':'Mozilla/5.0'}, signal:AbortSignal.timeout(12000)});
