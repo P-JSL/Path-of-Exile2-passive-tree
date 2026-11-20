@@ -198,3 +198,5 @@
  .allocated-disclosure>summary{min-height:48px}
 }
 @media(prefers-reduced-motion:reduce){.sidebar,.details-panel,.toast{transition:none!important}}
+
+.allocation-preview{color:#b9eedb;background:#143b36;border-left:3px solid #60d8b6;padding:11px 12px;border-radius:5px;font-size:11px;line-height:1.6;margin:15px 0 0}
