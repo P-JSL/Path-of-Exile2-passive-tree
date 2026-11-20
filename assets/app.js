@@ -19,6 +19,7 @@ const POB_SOURCE_KEY = 'exile-tree-pob2-source-v1';
 let importedPob = null;
 let pobBuildView = false;
 let pobWeaponView = 'all';
+let pobProfileBuild = null, pobProfileItemSet = '', pobProfileSkillSet = '';
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
@@ -716,10 +717,37 @@ function setPobBuildView(enabled) {
     renderer?.schedule();
   }
 }
+function populatePobProfileSetSelect(id, sets, preferred, original) {
+  const control = $(id);
+  const selected = sets.find(s => s.id === preferred)?.id ||
+    sets.find(s => s.id === original)?.id || sets[0]?.id || '';
+  const fragment = document.createDocumentFragment();
+  for (const [index, set] of sets.entries()) {
+    const option = document.createElement('option');
+    option.value = set.id;
+    option.textContent = set.title || set.id || String(index + 1);
+    fragment.append(option);
+  }
+  control.replaceChildren(fragment);
+  control.value = selected;
+  control.disabled = sets.length <= 1;
+  return selected;
+}
+function renderPobCurrentProfile() {
+  if (!importedPob) return;
+  renderPobProfile(importedPob.build, importedPob.selectedIndex, state.language, {
+    itemSetId:pobProfileItemSet,skillSetId:pobProfileSkillSet
+  });
+}
 function renderPobOverview() {
   const panel = $('pob-overview');
-  if (!importedPob || !tree) { panel.hidden = true; return; }
+  if (!importedPob || !tree) { panel.hidden = true; pobProfileBuild = null; return; }
   const { build, selectedIndex } = importedPob;
+  if (pobProfileBuild !== build) {
+    pobProfileBuild = build;
+    pobProfileItemSet = build.activeItemSet;
+    pobProfileSkillSet = build.activeSkillSet;
+  }
   panel.hidden = false;
   const spec = build.specs[selectedIndex];
   const select = $('pob-spec-select');
@@ -770,7 +798,11 @@ function renderPobOverview() {
     ])), t('pobNoConfig'));
   addPobSection(groups, t('pobStats'), build.stats.map(stat => [stat.name, stat.value]));
   if (build.notes) addPobSection(groups, t('pobNotes'), [[t('pobNotes'), build.notes]]);
-  renderPobProfile(build,selectedIndex,state.language);
+  pobProfileItemSet = populatePobProfileSetSelect(
+    'pob-profile-gear-select', build.itemSets, pobProfileItemSet, build.activeItemSet);
+  pobProfileSkillSet = populatePobProfileSetSelect(
+    'pob-profile-skills-select', build.skillSets, pobProfileSkillSet, build.activeSkillSet);
+  renderPobCurrentProfile();
   $('pob-view-toggle').hidden = false;
 }
 function applyImportedPobSelection(index, requireConfirmation = true) {
@@ -935,6 +967,16 @@ function wireUI() {
   $('pob-import').addEventListener('click', () => { void importPobFromInput(); });
   $('pob-view-toggle').addEventListener('click', () => setPobBuildView(!pobBuildView));
   $('pob-back-tree').addEventListener('click', () => setPobBuildView(false));
+  $('pob-profile-gear-select').addEventListener('change', e => {
+    if (!importedPob) return;
+    pobProfileItemSet = e.target.value;
+    renderPobCurrentProfile();
+  });
+  $('pob-profile-skills-select').addEventListener('change', e => {
+    if (!importedPob) return;
+    pobProfileSkillSet = e.target.value;
+    renderPobCurrentProfile();
+  });
   $('pob-weapon-view').addEventListener('change', e => {
     const mode = e.target.value;
     if (!['all','1','2'].includes(mode)) return;
