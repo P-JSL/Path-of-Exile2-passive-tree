@@ -72,7 +72,10 @@ export function parsePobDocument(doc) {
       treeVersion: attr(spec, 'treeVersion'),
       classInternalId: attr(spec, 'classInternalId'),
       ascendancyInternalId: attr(spec, 'ascendancyInternalId'),
-      nodeIds: [...new Set([...ids(attr(spec, 'nodes')), ...weapons.flat()])],
+      // PoB2 PassiveSpec: Spec.nodes is the authoritative complete allocation
+      // list. WeaponSet1/2 only mark the mode for already allocated node IDs.
+      // Do not synthesize additional allocations from malformed markers.
+      nodeIds: [...new Set(ids(attr(spec, 'nodes')))],
       weaponSets: weapons,
       sockets: children(child(spec, 'Sockets'), 'Socket').map(s => ({nodeId:Number(attr(s,'nodeId')),itemId:attr(s,'itemId')})),
       attributeChoices
