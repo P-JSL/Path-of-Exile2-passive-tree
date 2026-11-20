@@ -51,7 +51,11 @@ export async function downloadAtlases(directory = 'data/visual') {
 
 async function main() {
   const frames = await downloadAtlases();
+  const game = JSON.parse(await readFile('data/tree.json', 'utf8'));
+  const coverage = countMatchingIcons(Object.values(game.nodes), frames);
+  if (coverage.matched < 4000) throw new Error('Official sprite match coverage fell below 4,000 nodes: ' + JSON.stringify(coverage));
   console.log('Official passive-tree sprite frames: ' + Object.keys(frames).length);
+  console.log('Official passive-tree matched icons: ' + JSON.stringify(coverage));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await main();
