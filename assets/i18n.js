@@ -53,6 +53,12 @@ const STRINGS = {
     canvasAria:'패시브 트리 지도. 한 손가락으로 이동하고 두 손가락으로 확대할 수 있습니다.',
     sidebarOpen:'설정 열기',sidebarClose:'설정 닫기',detailClose:'상세 닫기',
     keywordNoteHeading:'스킬 용어 메모',keywordOpen:'{term} 설명 열기',keywordClose:'용어 메모 닫기',keywordReference:'PoE2DB 한국어 용어집에서 자세히 보기',keywordFallback:'이 용어의 상세 설명이 아직 등록되지 않았습니다. 연결된 PoE2DB 용어집에서 게임 규칙을 확인할 수 있습니다.',keywordContext:'선택한 패시브 효과: {text}',
+    budgetLabel:'현재 트리 포인트 한도',budgetUnset:'미설정',budgetHint:'레벨·퀘스트·시련으로 실제 획득한 포인트를 직접 입력하세요. 미설정 시 한도를 강제하지 않습니다.',
+    budgetUsage:'사용 {used} / 한도 {max}',budgetNoLimit:'사용 {used} / 한도 미설정',budgetOk:'확인 가능한 배분 제약 위반 없음',
+    budgetIssues:'확인된 배분 제약 위반 {count}건 ({reason})',ruleUnavailable:'선택한 노드가 현재 트리에 없습니다.',
+    ruleUnallocatable:'배분할 수 없는 시작 또는 표시 전용 노드입니다.',ruleOtherAscendancy:'선택한 전직의 노드만 배분할 수 있습니다.',
+    ruleLocked:'해당 전직 조건을 충족해야 합니다.',rulePrerequisite:'선행 패시브 ID {id}을(를) 먼저 배분해야 합니다.',
+    ruleExclusiveChoice:'같은 선택 그룹에서는 하나의 노드만 사용할 수 있습니다.',rulePointBudget:'포인트 한도를 초과합니다. 사용 {used} / 한도 {max}.',
     noAsc:'선택 없음'
   },
   en: {
@@ -106,6 +112,12 @@ const STRINGS = {
     canvasAria:'Passive skill tree. Drag to pan and pinch with two fingers to zoom.',
     sidebarOpen:'Open settings',sidebarClose:'Close settings',detailClose:'Close details',
     keywordNoteHeading:'SKILL KEYWORD NOTE',keywordOpen:'Read about {term}',keywordClose:'Close keyword note',keywordReference:'Learn more in the PoE2DB glossary',keywordFallback:'A detailed explanation for this keyword is not yet included. Consult the linked PoE2DB glossary for the exact game rules.',keywordContext:'Selected passive effect: {text}',
+    budgetLabel:'Available points for this tree',budgetUnset:'Not set',budgetHint:'Enter points actually earned through levels, quests and trials. An unset budget is not enforced.',
+    budgetUsage:'Spent {used} / limit {max}',budgetNoLimit:'Spent {used} / no limit set',budgetOk:'No violations of supported allocation rules',
+    budgetIssues:'{count} allocation issues ({reason})',ruleUnavailable:'This node is not in the current tree.',
+    ruleUnallocatable:'Start and decorative nodes cannot be allocated.',ruleOtherAscendancy:'Only nodes in the selected Ascendancy can be allocated.',
+    ruleLocked:'This Ascendancy requirement is not met.',rulePrerequisite:'Allocate prerequisite passive ID {id} first.',
+    ruleExclusiveChoice:'Only one option in this choice group can be selected.',rulePointBudget:'Point limit exceeded: spent {used} / limit {max}.',
     noAsc:'None'
   }
 };
