@@ -52,7 +52,10 @@ export class TreeRenderer {
   setScene(nodes, allEdges, options = {}) {
     this.nodes = nodes;
     this.nodeMap = new Map(nodes.map(n => [n.id, n]));
-    this.worldBounds = getBounds(nodes, 400);
+    // Keep the same world bounds for Oracle ON/OFF. Otherwise hiding nodes
+    // near an outer boundary can clamp the camera and move the user's view.
+    const comparisonNodes = options.oracleDifference?.nodes || [];
+    this.worldBounds = getBounds(comparisonNodes.length ? [...nodes, ...comparisonNodes] : nodes, 400);
     // Long-distance logical links (class → separate ascendancy tree, Pathfinder portals)
     // are not visible map connectors. Keep them in the model for path logic.
     this.edges = allEdges.filter(e => {
@@ -77,6 +80,11 @@ export class TreeRenderer {
     this.searchMatches = options.searchMatches ?? new Set();
     this.searchActive = !!options.searchActive;
     this.previewPath = options.previewPath ?? new Set();
+    // These positions are derived from the full original GGG graph, including
+    // hidden Oracle nodes currently omitted from the interactive scene.
+    this.oracleDifference = options.oracleDifference ?? null;
+    this.oracleShown = !!options.oracleShown;
+    this.oracleComparison = !!options.oracleComparison;
     if (options.preserveViewport) {
       this.constrainView();
       this.schedule();
@@ -117,6 +125,8 @@ export class TreeRenderer {
     if ('weaponSet1' in options) this.weaponSet1 = options.weaponSet1 ?? new Set();
     if ('weaponSet2' in options) this.weaponSet2 = options.weaponSet2 ?? new Set();
     if ('socketedJewelIds' in options) this.socketedJewelIds = options.socketedJewelIds ?? new Set();
+    if ('oracleComparison' in options) this.oracleComparison = !!options.oracleComparison;
+    if ('oracleShown' in options) this.oracleShown = !!options.oracleShown;
     if (options.localizeName) this.localizeName = options.localizeName;
     this.schedule();
   }
@@ -133,7 +143,10 @@ export class TreeRenderer {
     if (!prevWidth && this.nodes.length) this.fitAll(); else this.schedule();
   }
   fitAll() {
-    const box = getBounds(this.nodes, 600);
+    // An explicitly requested overview also includes ghost Oracle positions.
+    const nodes = this.oracleComparison && this.oracleDifference?.nodes?.length
+      ? [...this.nodes, ...this.oracleDifference.nodes] : this.nodes;
+    const box = getBounds(nodes, 600);
     this.centerX = (box.minX + box.maxX) / 2;
     this.centerY = (box.minY + box.maxY) / 2;
     if (this.width && this.height) {
@@ -269,6 +282,62 @@ export class TreeRenderer {
       this.drawNormalsBatched(normal);
     else for (const n of normal) this.drawNode(n);
     for (const n of special) this.drawNode(n);
+    this.drawOracleDifferenceOverlay(left,top,right,bottom);
+  }
+  /**
+   * Source-exact Oracle differences: highlighted real nodes when enabled,
+   * dashed, non-interactive ghost positions when hidden.
+   * No camera changes, fake graph links, or allocation side effects.
+   */
+  drawOracleDifferenceOverlay(left,top,right,bottom) {
+    const diff = this.oracleDifference;
+    if (!this.oracleComparison || this.mode !== 'passive' || !diff?.nodes.length) return;
+    const ctx = this.ctx, showing = this.oracleShown;
+    ctx.save();
+    ctx.globalAlpha = showing ? 1 : .68;
+    ctx.lineWidth = showing ? 2.6 : 1.8;
+    ctx.strokeStyle = showing ? '#de83ff' : '#a68bcc';
+    if (!showing) ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    for (const edge of diff.edges) {
+      const a = edge.from, b = edge.to;
+      if (!a || !b) continue;
+      if ((a.x < left - 450 && b.x < left - 450) ||
+          (a.x > right + 450 && b.x > right + 450) ||
+          (a.y < top - 450 && b.y < top - 450) ||
+          (a.y > bottom + 450 && b.y > bottom + 450)) continue;
+      const p = this.toScreen(a.x,a.y), q = this.toScreen(b.x,b.y);
+      const radius = (this.orbitRadii[a.orbit] || 0) * this.zoom;
+      const orbit = edge.orbit && a.group === b.group && a.orbit === b.orbit &&
+        Number.isFinite(a.groupX) && Number.isFinite(a.groupY) && radius > 0;
+      if (orbit) {
+        const center = this.toScreen(a.groupX,a.groupY);
+        const start = Math.atan2(p.y-center.y,p.x-center.x);
+        const end = Math.atan2(q.y-center.y,q.x-center.x);
+        let sweep = end-start;
+        if (sweep > Math.PI) sweep -= Math.PI*2;
+        if (sweep < -Math.PI) sweep += Math.PI*2;
+        ctx.moveTo(p.x,p.y);
+        ctx.arc(center.x,center.y,radius,start,start+sweep,sweep<0);
+      } else { ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y); }
+    }
+    ctx.stroke();
+    for (const node of diff.nodes) {
+      if (node.x < left-120 || node.x > right+120 || node.y < top-120 || node.y > bottom+120) continue;
+      const p = this.toScreen(node.x,node.y);
+      const radius = Math.max(7,Math.min(17,this.zoom*30));
+      ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);
+      ctx.lineWidth = showing ? 3 : 2;
+      ctx.strokeStyle = showing ? '#ffe3ff' : '#d5a4ed';
+      ctx.stroke();
+      // Inner accent distinguishes unlocked additions from dashed previews,
+      // even at overview zoom or when the original node icon is very small.
+      if (showing) {
+        ctx.beginPath();ctx.arc(p.x,p.y,Math.max(4,radius-5),0,Math.PI*2);
+        ctx.lineWidth = 2;ctx.strokeStyle = '#b651f3';ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
   /** Preserve all low-zoom normal nodes but draw shared colors in a few paths. */
   drawNormalsBatched(nodes) {

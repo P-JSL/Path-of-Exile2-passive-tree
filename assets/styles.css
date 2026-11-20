@@ -249,3 +249,30 @@ border-radius:6px;background:#152234;color:#e8f1f2;font-size:12px}
 .pob-profile-set-controls p{margin:0;flex:1 1 200px;font-size:10px;line-height:1.6;color:#a8bbc9}
 @media(max-width:850px){.pob-profile-set-controls label{flex:1 1 110px;min-width:110px}
 .pob-profile-set-controls p{flex-basis:100%}}
+
+/* Oracle comparison: separate added game nodes from the existing tree. */
+.oracle-compare-switch{margin:13px 0 6px;padding:9px 7px;border-radius:7px;background:#392750;border:1px solid #8461a8}
+.oracle-diff-summary{border-left:4px solid #e6a2ff;background:#251a35;padding:10px;margin:9px 0 0;
+color:#f5dbff;font-size:11px;line-height:1.6;font-weight:750;border-radius:4px}
+.oracle-diff-help{color:#c6b6d8;font-size:10px;line-height:1.65;margin:9px 0 0}
+.oracle-diff-details{margin-top:12px;border:1px solid #58446b;border-radius:7px;overflow:hidden}
+.oracle-diff-details>summary{cursor:pointer;padding:12px;color:#f0d7fb;font-size:11px;font-weight:700;
+background:#292038;list-style:none}
+.oracle-diff-details>summary::-webkit-details-marker{display:none}
+.oracle-diff-details>summary:before{content:'▸';margin-right:7px}
+.oracle-diff-details[open]>summary:before{content:'▾'}
+.oracle-diff-list{max-height:330px;overflow-y:auto;background:#141625;padding:7px}
+.oracle-diff-group{padding:7px 4px 4px;color:#c9a6e5;font-size:10px;font-weight:700}
+.oracle-node-entry{width:100%;text-align:left;display:flex;flex-direction:column;gap:3px;
+padding:9px 8px;margin:3px 0;background:#1e2639;border:1px solid #594476;border-radius:5px;
+color:#f3e7f7;font-size:11px}
+.oracle-node-entry small{color:#aa91c6;font-size:10px}
+.oracle-node-entry:hover,.oracle-node-entry:focus-visible{background:#3d2b50;border-color:#df9aff}
+.oracle-node-entry.active{background:#47315c;border-color:#f2bbff}
+.oracle-diff-banner{position:absolute;z-index:2;right:12px;bottom:62px;
+background:#362046ec;color:#ffe2ff;border:2px solid #bd79e5;border-radius:9px;
+padding:9px 12px;font-weight:750;font-size:11px;max-width:min(285px,55%);
+box-shadow:0 5px 18px #0008;pointer-events:none;line-height:1.5}
+.oracle-diff-banner[data-view="preview"]{border-style:dashed;color:#e8caf3;background:#241b33ed}
+@media(max-width:850px){.oracle-diff-banner{right:9px;bottom:48px;max-width:55%;font-size:9px;padding:7px}
+.oracle-node-entry{min-height:44px}}
