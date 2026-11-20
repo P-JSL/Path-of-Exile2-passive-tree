@@ -31,18 +31,27 @@ try {
 }
 console.log('Korean upstream examples: ' + JSON.stringify(Object.entries(upstream).slice(0, 6)));
 console.log('Korean upstream shock-related examples: ' + JSON.stringify(Object.entries(upstream).filter(([en]) => en.toLowerCase().includes('shock')).slice(0, 7)));
-// Probe the game database's Korean passive export; it may offer direct ID-based localization.
-try {
-  const uri = 'https://poe2db.tw/data/passive-skill-tree/4.5/data_kr.json';
-  const response = await fetch(uri, {headers:{Referer:'https://poe2db.tw/', 'User-Agent':'Mozilla/5.0'}, signal:AbortSignal.timeout(7000)});
-  console.log('PoE2DB Korean tree probe: ' + response.status + ' ' + (response.headers.get('content-length') || 'unknown-length'));
-  if (response.ok) {
-    const probe = await response.json();
-    console.log('PoE2DB Korean tree keys: ' + Object.keys(probe).slice(0,15).join(', '));
-    console.log('PoE2DB Korean example: ' + JSON.stringify(Object.values(probe.nodes || {})[0] || {}).slice(0,300));
-  }
-} catch (error) { console.log('PoE2DB Korean probe unavailable: ' + String(error)); }
-// The authoritative game table uses indexed placeholders such as {0} and {0:+d}.
+// Match the bilingual game tree by native skill ID and source English text.
+const poe2db = {};
+async function fetchTree(uri) {
+  const response = await fetch(uri, {headers:{Referer:'https://poe2db.tw/','User-Agent':'Mozilla/5.0'}, signal:AbortSignal.timeout(12000)});
+  if (!response.ok) throw Error('HTTP ' + response.status + ' ' + uri);
+  return response.json();
+}
+for (const [type, slug] of [['passive','passive-skill-tree'],['atlas','atlas-skill-tree'],['genesis','the-genesis-tree']]) {
+  try {
+    const endpoint = 'https://poe2db.tw/data/' + slug + '/4.5/data_';
+    const [en, ko] = await Promise.all([fetchTree(endpoint + 'us.json'), fetchTree(endpoint + 'kr.json')]);
+    poe2db[type] = {en, ko};
+    const source = type === 'passive' ? Object.values(all.nodes) : type === 'atlas' ? Object.values(atlas.passives) : Object.values(genesis.passives);
+    const byId = obj => new Map(Object.values(obj.nodes || {}).map(n => [Number(n.skill ?? n.hash), n]));
+    const enMap = byId(en), koMap = byId(ko);
+    const matchedId = source.filter(n => enMap.has(Number(n.skill ?? n.hash)) && koMap.has(Number(n.skill ?? n.hash)));
+    const matchedName = matchedId.filter(n => enMap.get(Number(n.skill ?? n.hash)).name === n.name);
+    console.log('PoE2DB ' + type + ': bilingual=' + enMap.size + '/' + koMap.size + ', matched IDs=' + matchedId.length + '/' + source.length + ', matching English names=' + matchedName.length);
+    console.log('PoE2DB ' + type + ' sample: ' + JSON.stringify(matchedName.slice(0,2).map(n=>({src:n.name, en:enMap.get(Number(n.skill ?? n.hash)).stats?.slice(0,1), ko:koMap.get(Number(n.skill ?? n.hash)).stats?.slice(0,1)}))).slice(0,500));
+  } catch (error) { console.warn('PoE2DB ' + type + ' not available: ' + String(error)); }
+}
 const placeholderRe = /\{(\d+)(?::[^}]*)?\}/g;
 const indexedTemplates = new Map();
 for (const [english, korean] of Object.entries(upstream)) {
