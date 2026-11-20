@@ -3,6 +3,7 @@ import { TreeRenderer } from './renderer.js';
 import { buildExtraTree } from './extra-model.js';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, tr, passiveName, passiveStat } from './i18n.js';
 import { ATTRIBUTES, isAnyAttributeNode, selectedAttributeStat, validAttributeChoices, encodeAttributeChoices, decodeAttributeChoices } from './attributes.js';
+import { parseSkillKeywords, verifiedSkillMarkup, builtInKeywordDescription } from './skill-notes.js';
 
 const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
@@ -71,6 +72,54 @@ function localizedStats(n, mode = state.mode) {
     return chosen || line;
   });
   return raw.map(line => (mode === 'passive' ? selectedAttributeStat(line, attributeSelection(n.id), state.language) : null) || localStat(line));
+}
+let activeKeywordTrigger = null;
+function closeKeywordNote(restoreFocus = false) {
+  const trigger = activeKeywordTrigger;
+  if (trigger?.isConnected) trigger.setAttribute('aria-expanded', 'false');
+  $('keyword-note').hidden = true;
+  activeKeywordTrigger = null;
+  if (restoreFocus && trigger?.isConnected) trigger.focus();
+}
+function openKeywordNote(key, label, statLine, trigger) {
+  if (activeKeywordTrigger === trigger && !$('keyword-note').hidden) {
+    closeKeywordNote(true);
+    return;
+  }
+  closeKeywordNote();
+  const explanation = builtInKeywordDescription(key, state.language);
+  $('keyword-note-title').textContent = label;
+  $('keyword-note-body').textContent = explanation || t('keywordFallback');
+  $('keyword-note-context').textContent = t('keywordContext', {text:statLine});
+  $('keyword-note-source').href = state.language === 'ko'
+    ? 'https://poe2db.tw/kr/Keywords'
+    : 'https://poe2db.tw/us/Keywords';
+  $('keyword-note').hidden = false;
+  trigger.setAttribute('aria-expanded', 'true');
+  activeKeywordTrigger = trigger;
+  if (window.matchMedia('(max-width:850px)').matches)
+    $('keyword-note').scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+/** Preserve game-provided keyword links, without parsing game data as HTML. */
+function appendSkillDescription(container, visible, markup) {
+  const annotated = verifiedSkillMarkup(visible, markup) || verifiedSkillMarkup(visible, visible);
+  if (!annotated) { container.textContent = visible; return; }
+  for (const part of parseSkillKeywords(annotated)) {
+    if (!part.key) { container.append(document.createTextNode(part.text)); continue; }
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'keyword-term';
+    button.textContent = part.text; button.title = t('keywordOpen', {term:part.text});
+    button.setAttribute('aria-label', t('keywordOpen', {term:part.text}));
+    button.setAttribute('aria-controls', 'keyword-note');
+    button.setAttribute('aria-expanded', 'false');
+    button.addEventListener('click', () => openKeywordNote(part.key, part.text, visible, button));
+    container.append(button);
+  }
+}
+function keywordMarkupForNode(node, index) {
+  const mode = state.mode === 'ascendancy' ? 'passive' : state.mode;
+  return localeCatalog.nodes?.[mode]?.[node.id]?.richStats?.[state.language]?.[index]
+    || node.stats?.[index] || null;
 }
 function applyLanguageText() {
   document.documentElement.lang = state.language;
@@ -284,6 +333,7 @@ async function selectMode(mode) {
   return true;
 }
 function showDetail(n) {
+  closeKeywordNote();
   $('details-placeholder').hidden = !!n;
   $('details-content').hidden = !n;
   if (!n) return;
@@ -293,11 +343,12 @@ function showDetail(n) {
   $('detail-name').textContent = localName(n) || t('noName');
   $('detail-stats').replaceChildren();
   const translatedLines = localizedStats(n);
-  for (const line of translatedLines.length ? translatedLines : [t('noStats')]) {
+  const displayLines = translatedLines.length ? translatedLines : [t('noStats')];
+  displayLines.forEach((line, index) => {
     const p = document.createElement('p'); p.className = 'stat-line';
-    p.textContent = line;
+    appendSkillDescription(p, line, translatedLines.length ? keywordMarkupForNode(n, index) : null);
     $('detail-stats').append(p);
-  }
+  });
   const control = $('attribute-control');
   const choice = $('attribute-select');
   const selectable = state.mode === 'passive' && isAnyAttributeNode(n);
@@ -449,13 +500,17 @@ function wireUI() {
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
   $('sidebar-toggle').addEventListener('click', () => openOverlay('sidebar'));
   $('sidebar-close').addEventListener('click', closeOverlay);
-  $('details-close').addEventListener('click', closeOverlay);
+  $('details-close').addEventListener('click', () => { closeKeywordNote(); closeOverlay(); });
+  $('keyword-note-close').addEventListener('click', () => closeKeywordNote(true));
   $('scrim').addEventListener('click', closeOverlay);
   $('mobile-settings').addEventListener('click', () => openOverlay('sidebar'));
   $('mobile-search').addEventListener('click', () => { openOverlay('sidebar'); $('search-input').focus(); });
   $('mobile-details').addEventListener('click', () => openOverlay('details'));
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeOverlay();
+    if (e.key === 'Escape') {
+      if (!$('keyword-note').hidden) closeKeywordNote(true);
+      else closeOverlay();
+    }
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
     if (e.key === '+' || e.key === '=') renderer.zoomBy(1.3);
     else if (e.key === '-') renderer.zoomBy(1 / 1.3);
