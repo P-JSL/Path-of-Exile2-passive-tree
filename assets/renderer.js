@@ -51,6 +51,8 @@ export class TreeRenderer {
     this.rootIds = new Set(Array.isArray(options.rootId) ? options.rootId : [options.rootId]);
     this.rootNeighborIds = new Set([...this.rootIds].flatMap(id =>
       (this.nodeMap.get(id)?.connections || []).map(link => Number(link.id))));
+    this.weaponSet1 = options.weaponSet1 ?? new Set();
+    this.weaponSet2 = options.weaponSet2 ?? new Set();
     this.lockedOracle = !!options.lockedOracle;
     this.selectedId = options.selectedId ?? null;
     this.localizeName = options.localizeName ?? (n => n.name);
@@ -215,6 +217,7 @@ export class TreeRenderer {
         ctx.fillText(this.localizeName(n), p.x, p.y - radius - 15);
       }
       ctx.globalAlpha = 1;
+      this.drawWeaponSetRing(n, p, radius, allocated);
       return;
     }
     ctx.fillStyle = allocated ? '#54d9b6' : '#111c2a';
@@ -229,6 +232,26 @@ export class TreeRenderer {
       ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e9dbbb'; ctx.fillText(this.localizeName(n), p.x, p.y - radius - 10);
     }
     ctx.globalAlpha = 1;
+    this.drawWeaponSetRing(n, p, radius, allocated);
+  }
+  drawWeaponSetRing(n, position, radius, allocated) {
+    if (!allocated || this.zoom < .09) return;
+    const first = this.weaponSet1.has(n.id), second = this.weaponSet2.has(n.id);
+    if (!first && !second) return;
+    const ctx = this.ctx;
+    const ringRadius = radius + 5;
+    ctx.save();
+    ctx.lineWidth = 2.3;
+    if (first && second) {
+      ctx.strokeStyle = '#e2bb78';
+      ctx.beginPath(); ctx.arc(position.x, position.y, ringRadius, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+      ctx.strokeStyle = '#b6a0ff';
+      ctx.beginPath(); ctx.arc(position.x, position.y, ringRadius, Math.PI / 2, Math.PI * 1.5); ctx.stroke();
+    } else {
+      ctx.strokeStyle = first ? '#e2bb78' : '#b6a0ff';
+      ctx.beginPath(); ctx.arc(position.x, position.y, ringRadius, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
   }
   drawOfficialNode(n, position, allocated) {
     if (!this.art || !n.icon || n.isOnlyImage || this.zoom < .065) return false;
