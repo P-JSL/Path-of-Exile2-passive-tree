@@ -554,7 +554,7 @@ function wireUI() {
   $('point-budget').addEventListener('change', e => {
     const value = e.target.value.trim();
     if (value === '') delete state.budgets[state.mode];
-    else if (/^\\d+$/.test(value)) {
+    else if (/^\d+$/.test(value)) {
       const amount = Number(value);
       if (!Number.isSafeInteger(amount) || amount > 999) { refreshBudgetAudit(); return; }
       state.budgets[state.mode] = amount;
