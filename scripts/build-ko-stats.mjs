@@ -182,7 +182,7 @@ for (const [type, rawNodes] of [
     if (name || translatedLines.length) {
       const entry = {name, stats:translatedLines};
       // Retain clickable in-game keyword IDs without changing display text.
-      if (sameVersion && enLines.length === koLines.length && koLines.some(line => line.includes('['))) {
+      if (sameVersion && enLines.length === koLines.length && [...enLines, ...koLines].some(line => line.includes('['))) {
         entry.richStats = {
           ko: koLines.map(line => line.includes('[') ? line : null),
           en: enLines.map(line => line.includes('[') ? line : null)
