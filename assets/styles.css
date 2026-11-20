@@ -227,3 +227,15 @@
 border-left:3px solid #d3b777;border-radius:6px;background:#2d2a24;color:#ead5ab;
 font-size:11px;line-height:1.65;overflow-wrap:anywhere}
 .stat-source-notice[hidden]{display:none}
+
+/* PoB item tooltips are not usable on touch screens; full source is accessible by tap. */
+.pob-source-details{margin:8px 0 0;padding-top:6px;border-top:1px solid #4c5969;min-width:0}
+.pob-source-details>summary{color:#aacee2;cursor:pointer;font-size:11px;line-height:1.6;
+  list-style:none;min-height:22px;overflow-wrap:anywhere}
+.pob-source-details>summary::-webkit-details-marker{display:none}
+.pob-source-details>summary::before{content:'▸';margin-right:6px;color:#d4bc84}
+.pob-source-details[open]>summary::before{content:'▾'}
+.pob-source-details>pre{margin:8px 0 2px;padding:8px;background:#101926;border:1px solid #384b5b;
+  border-radius:5px;color:#d7e1e6;font:10px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
+  white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto}
+@media(max-width:850px){.pob-source-details>summary{min-height:38px;display:flex;align-items:center}}
