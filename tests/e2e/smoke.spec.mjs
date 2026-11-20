@@ -109,7 +109,7 @@ Another Base
   await gearSelect.selectOption('1');
   await expect(page.locator('#pob-profile-equipment')).toContainText('Mobile Helm');
   await skillSelect.selectOption('2');
-  await expect(page.locator('#pob-profile-skill-list')).toContainText('Tempest');
+  await expect(page.locator('#pob-profile-skill-list')).toContainText('폭풍');
   await skillSelect.selectOption('1');
   await expect(page.locator('#pob-profile-skill-list')).toContainText('전기불꽃');
   await expect(page.locator('#pob-profile-stat-list')).toContainText('평균 적중 피해');
@@ -180,7 +180,7 @@ test('compressed URL-safe PoB2 share codes decode in desktop and touch WebKit', 
   await page.locator('#pob-code').fill(code);
   await page.locator('#pob-import').click();
   await expect(page.locator('#pob-build-stage')).toBeVisible();
-  await expect(page.locator('#pob-meta')).toContainText('Nodes 1');
+  await expect(page.locator('#pob-meta')).toContainText('패시브 1개');
   const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('exile-tree-pob2-source-v1') || 'null'));
   expect(stored?.source).toBe(code);
   expect(errors).toEqual([]);
