@@ -13,11 +13,17 @@ export function buildExtraTree(raw, id) {
     const radius = raw.orbit_radii[item.position.radius] ?? 0;
     const count = raw.skills_per_orbit[item.position.radius] || 1;
     const radians = 2 * Math.PI * item.position.position_clockwise / count;
-    const stats = (value.stat_text?.length ? value.stat_text : Object.entries(value.stats || {}).map(([k, v]) => `${k}: ${v}`))
+    // RePoE Genesis 0_5 exports internal modifier IDs instead of human-readable
+    // stat_text. Keep the exact raw keys/values but never present them as a
+    // localized or verified description of the in-game passive effect.
+    const hasText = Array.isArray(value.stat_text) && value.stat_text.length > 0;
+    const rawInternal = Object.entries(value.stats || {});
+    const statsSource = hasText ? 'gameText' : rawInternal.length ? 'internalKeys' : 'none';
+    const stats = (hasText ? value.stat_text : rawInternal.map(([k, v]) => `${k}: ${v}`))
       .map(s => String(s).replace(/\[([^\]|]+)\|([^\]]+)\]/g, '$2'));
     nodes.set(hash, {
       id: hash, skill: hash, name: value.name || value.id || `#${hash}`,
-      stats, x: item.group.x + Math.sin(radians) * radius,
+      stats, statsSource, x: item.group.x + Math.sin(radians) * radius,
       y: item.group.y - Math.cos(radians) * radius,
       category: value.is_keystone ? 'keystone' : value.is_notable ? 'notable' : value.is_jewel_socket ? 'socket' : raw.roots.includes(hash) ? 'start' : 'normal',
       isOnlyImage: !!value.is_icon_only, isMultipleChoice: !!value.is_multiple_choice,

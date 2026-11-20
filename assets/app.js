@@ -93,8 +93,15 @@ function attributeSelection(id) {
 /** Prefer a verified same-ID bilingual tree entry, preserving unselected original attributes. */
 function localizedStats(n, mode = state.mode) {
   const raw = n?.stats || [];
+  // Machine keys are preserved byte-for-byte; an ID or text-dictionary hit
+  // cannot convert opaque Genesis data into a verified game tooltip.
+  if (n?.statsSource === 'internalKeys') return raw;
+  if (n?.statsSource === 'none') return [];
   const kind = mode === 'ascendancy' ? 'passive' : mode;
-  const direct = state.language === 'ko' ? localeCatalog.nodes?.[kind]?.[n.id]?.stats : null;
+  // Do not apply a PoE2DB text translation to opaque RePoE internal stat keys.
+  // An ID match alone does not prove identical modifier semantics or version.
+  const direct = state.language === 'ko' && n.statsSource !== 'internalKeys'
+    ? localeCatalog.nodes?.[kind]?.[n.id]?.stats : null;
   if (direct?.length) return direct.map((line, index) => {
     const chosen = mode === 'passive' ? selectedAttributeStat(raw[index], attributeSelection(n.id), state.language) : null;
     return chosen || line;
@@ -501,6 +508,8 @@ function showDetail(n) {
     : n.hiddenOracle ? t('oracleDetail') : n.ascendancyName ? localName(n.ascendancyName)+' · '+t('ascPoints') : t(types[n.category] || 'normalPassive');
   $('detail-name').textContent = localName(n) || t('noName');
   $('detail-stats').replaceChildren();
+  $('stat-source-notice').hidden = n.statsSource !== 'internalKeys';
+  $('stat-source-notice').textContent = n.statsSource === 'internalKeys' ? t('internalStatWarning') : '';
   const translatedLines = localizedStats(n);
   const displayLines = translatedLines.length ? translatedLines : [t('noStats')];
   displayLines.forEach((line, index) => {

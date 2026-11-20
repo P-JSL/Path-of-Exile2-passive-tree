@@ -43,3 +43,17 @@ export function auditTranslationRows(rows, translateName, translateStat) {
     untranslatedStats:sorted(absentStats)
   };
 }
+
+/** Count independently inspectable game text versus opaque internal modifier keys. */
+export function describeEffectSources(nodes, extra = false) {
+  let humanReadableNodes=0, internalKeyNodes=0, internalKeyEntries=0, withoutEffectsNodes=0;
+  for(const node of Object.values(nodes)) {
+    const human = extra ? (Array.isArray(node.stat_text) && node.stat_text.length > 0)
+      : (Array.isArray(node.stats) && node.stats.length > 0);
+    const internal = extra && !human ? Object.keys(node.stats || {}).length : 0;
+    if(human) humanReadableNodes++;
+    else if(internal) {internalKeyNodes++;internalKeyEntries+=internal;}
+    else withoutEffectsNodes++;
+  }
+  return {humanReadableNodes,internalKeyNodes,internalKeyEntries,withoutEffectsNodes};
+}

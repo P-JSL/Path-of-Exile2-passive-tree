@@ -221,3 +221,9 @@
 .pob-jewel-detail strong{color:#d4beef;font-size:12px}
 .pob-jewel-detail pre{color:#d7d5e7;font:11px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
  white-space:pre-wrap;overflow-wrap:anywhere;max-height:270px;overflow-y:auto;margin:9px 0 0}
+
+/* Explicit provenance: RePoE internal stat keys are not game tooltips. */
+.stat-source-notice{margin:12px 0;padding:10px 12px;border:1px solid #786b51;
+border-left:3px solid #d3b777;border-radius:6px;background:#2d2a24;color:#ead5ab;
+font-size:11px;line-height:1.65;overflow-wrap:anywhere}
+.stat-source-notice[hidden]{display:none}
