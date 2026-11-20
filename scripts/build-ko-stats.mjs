@@ -119,7 +119,38 @@ for (const node of [...Object.values(all.nodes), ...Object.values(atlas.passives
   if (!name || locale.names?.[name] || staticPassives.names?.[name]) continue;
   if (typeof upstream[name] === 'string' && upstream[name] !== name) newNames[name] = upstream[name];
 }
-writeFileSync('data/ko-stats.json', JSON.stringify({source, stats, names:newNames}));
+const directNodes = {passive:{}, atlas:{}, genesis:{}};
+const normalizeEnglish = value => simplify(value).replace(/\[([^\]]+)\]/g, '$1').replace(/\s+/g, ' ').trim();
+for (const [type, rawNodes] of [
+  ['passive', Object.values(all.nodes)],
+  ['atlas', Object.values(atlas.passives)],
+  ['genesis', Object.values(genesis.passives)]
+]) {
+  const pair = poe2db[type];
+  if (!pair) continue;
+  const asMap = obj => new Map(Object.values(obj.nodes || {}).map(n => [Number(n.skill ?? n.hash), n]));
+  const enNodes = asMap(pair.en), koNodes = asMap(pair.ko);
+  let named = 0, statsMatched = 0, directLines = 0;
+  for (const raw of rawNodes) {
+    const id = Number(raw.skill ?? raw.hash);
+    const en = enNodes.get(id), ko = koNodes.get(id);
+    if (!en || !ko || en.name !== raw.name) continue;
+    const name = typeof ko.name === 'string' ? simplify(ko.name) : '';
+    const sourceLines = type === 'passive' ? raw.stats || [] : raw.stat_text || [];
+    const enLines = en.stats || [];
+    const koLines = ko.stats || [];
+    const sameVersion = sourceLines.length === 0 ||
+      (sourceLines.length === enLines.length &&
+       sourceLines.every((text, i) => normalizeEnglish(text) === normalizeEnglish(enLines[i])));
+    const translatedLines = sameVersion && koLines.length === enLines.length
+      ? koLines.map(simplify) : [];
+    if (name) named++;
+    if (translatedLines.length) { statsMatched++; directLines += translatedLines.length; }
+    if (name || translatedLines.length) directNodes[type][id] = {name, stats:translatedLines};
+  }
+  console.log('PoE2DB verified ' + type + ': translated names ' + named + '/' + rawNodes.length + ', translated node effects ' + statsMatched + '/' + rawNodes.length + ', lines=' + directLines);
+}
+writeFileSync('data/ko-stats.json', JSON.stringify({source, stats, names:newNames, nodes:directNodes}));
 const coverage = (total, count) => String(count) + '/' + String(total) + ' (' + (total ? count/total*100 : 100).toFixed(1) + '%)';
 console.log('Korean stat dictionary: upstream=' + Object.keys(upstream).length + ', translated=' + coverage(srcLines.size, Object.keys(stats).length));
 for (const [mode, nodes] of [['passive', Object.values(all.nodes)], ['atlas', Object.values(atlas.passives)], ['genesis', Object.values(genesis.passives)]]) {
