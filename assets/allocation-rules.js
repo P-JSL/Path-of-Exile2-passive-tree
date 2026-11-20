@@ -5,7 +5,12 @@
  * level, quest rewards, Ascendancy trial progress, or Weapon Set capacity.
  * Node IDs and graph edges are always sourced from the game export.
  */
+// Tree models are constructed from fixed game-export data and are immutable
+// during planning. Avoid scanning every node for each point allocation/audit.
+const choiceGroupCache = new WeakMap();
 export function choiceGroups(tree) {
+  const cached = choiceGroupCache.get(tree);
+  if (cached) return cached;
   const groups = [];
   for (const parent of tree.nodes.values()) {
     if (!parent.isMultipleChoice) continue;
@@ -13,6 +18,7 @@ export function choiceGroups(tree) {
       .filter(id => tree.nodes.get(id)?.isMultipleChoiceOption);
     if (options.length > 1) groups.push({parent:parent.id,options});
   }
+  choiceGroupCache.set(tree, groups);
   return groups;
 }
 
