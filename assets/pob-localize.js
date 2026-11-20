@@ -45,7 +45,7 @@ const metricKeys={
   HitChance:'명중 확률',TotalDot:'총 지속 피해',
   WithBleedDPS:'출혈 포함 DPS',BleedDPS:'출혈 DPS',
   WithIgniteDPS:'점화 포함 DPS',IgniteDPS:'점화 DPS',
-  TotalDPS:'총 DPS',FullDPS:'전체 DPS',TotalDotDPS:'지속 피해 DPS',
+  TotalDPS:'전체 DPS',FullDPS:'총 피해 DPS',TotalDotDPS:'지속 피해 DPS',
   Life:'생명력',Mana:'마나',EnergyShield:'에너지 보호막',
   LifeUnreserved:'예약하지 않은 생명력',ManaUnreserved:'예약하지 않은 마나',
   Spirit:'혼백',SpiritUnreserved:'예약하지 않은 혼백',
