@@ -78,11 +78,42 @@
         <div class="stage-header">
           <div><div id="stage-eyebrow" class="eyebrow">FULL PASSIVE SKILL TREE</div><h1 id="stage-title">패시브 트리</h1><p id="stage-subtitle">노드를 누르면 효과를 볼 수 있습니다.</p></div>
           <div class="stage-tools">
+            <button type="button" id="pob-view-toggle" class="stage-tool pob-view-toggle" hidden>PoB 빌드 보기</button>
             <button type="button" id="toggle-filters" class="stage-tool" aria-controls="sidebar" aria-expanded="true" data-i18n="hideFilters">필터 접기</button>
             <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
             <button type="button" id="toggle-details" class="stage-tool" aria-controls="details-panel" aria-expanded="true" data-i18n="hideDetails">정보 접기</button>
           </div>
         </div>
+        <section id="pob-build-stage" class="pob-build-stage" aria-label="PoB2 빌드 상세 정보" hidden>
+          <div class="pob-profile-banner">
+            <div>
+              <div class="eyebrow" data-i18n="pobProfileSubtitle">PATH OF BUILDING 2 · BUILD PROFILE</div>
+              <h2 id="pob-profile-name"></h2>
+              <p id="pob-profile-version"></p>
+            </div>
+            <button type="button" id="pob-back-tree" class="stage-tool" data-i18n="pobBackTree">패시브 트리로 돌아가기</button>
+          </div>
+          <div class="pob-profile-grid">
+            <section class="pob-profile-card pob-profile-gear">
+              <h3 data-i18n="pobEquipmentHeading">장착 장비</h3>
+              <p class="pob-profile-hint" data-i18n="pobGearHint">원본의 장비 슬롯과 아이템 속성을 표시합니다.</p>
+              <div id="pob-profile-equipment" class="pob-equipment-grid"></div>
+            </section>
+            <section class="pob-profile-card pob-profile-stats">
+              <h3 data-i18n="pobStatsHeading">PoB 능력치</h3>
+              <p class="pob-profile-hint" data-i18n="pobStatHint">원본 PoB에 저장된 계산 결과이며 다시 계산하지 않습니다.</p>
+              <div id="pob-profile-stat-list" class="pob-profile-stat-list"></div>
+            </section>
+            <section class="pob-profile-card pob-profile-skills">
+              <h3 data-i18n="pobSkillsHeading">스킬과 보조 젬</h3>
+              <div id="pob-profile-skill-list" class="pob-profile-skill-list"></div>
+            </section>
+            <section class="pob-profile-card pob-profile-jewels">
+              <h3 data-i18n="pobJewelsHeading">패시브 주얼 / 구성</h3>
+              <div id="pob-profile-jewel-list" class="pob-profile-jewel-list"></div>
+            </section>
+          </div>
+        </section>
         <div id="canvas-wrap" class="canvas-wrap">
           <canvas id="tree-canvas" aria-label="패시브 트리 지도. 손가락으로 이동하고 두 손가락으로 확대할 수 있습니다." data-i18n-aria="canvasAria"></canvas>
           <div id="loading-overlay" class="loading-overlay" role="status"><div class="loader"></div><strong><span data-i18n="loading">실제 패시브 데이터 로드 중</span></strong><span><span data-i18n="loadingDesc">게임 데이터와 연결 관계를 처리하고 있습니다.</span></span></div>

@@ -1,4 +1,5 @@
 import { importPobCode, resolvePobTree } from './pob-import.js';
+import { renderPobProfile } from './pob-profile.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
 import { buildExtraTree } from './extra-model.js';
@@ -13,6 +14,7 @@ const VALID_MODES = ['passive', 'ascendancy', 'atlas', 'genesis'];
 const KEY = 'exile-tree-plans-v1';
 const POB_SOURCE_KEY = 'exile-tree-pob2-source-v1';
 let importedPob = null;
+let pobBuildView = false;
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
@@ -167,6 +169,7 @@ function applyLanguageText() {
   }
   for (const node of document.querySelectorAll('[data-i18n-placeholder]')) node.placeholder = t(node.dataset.i18nPlaceholder);
   for (const node of document.querySelectorAll('[data-i18n-aria]')) node.setAttribute('aria-label', t(node.dataset.i18nAria));
+  if ($('pob-view-toggle')) $('pob-view-toggle').textContent = t(pobBuildView ? 'pobShowTree' : 'pobShowProfile');
 }
 
 function toast(message) {
@@ -416,6 +419,7 @@ async function selectMode(mode) {
       return false;
     } finally { $('loading-overlay').hidden = true; }
   }
+  setPobBuildView(false);
   state.mode = mode; state.selectedId = null; state.search = '';
   $('search-input').value = '';
   scene(); closeOverlay();
@@ -570,6 +574,20 @@ function addPobSection(container, title, blocks, empty = '') {
   }
   container.append(section);
 }
+function setPobBuildView(enabled) {
+  pobBuildView = !!(enabled && importedPob);
+  $('pob-build-stage').hidden = !pobBuildView;
+  $('canvas-wrap').hidden = pobBuildView;
+  $('pob-view-toggle').hidden = !importedPob;
+  $('pob-view-toggle').textContent = t(pobBuildView ? 'pobShowTree' : 'pobShowProfile');
+  $('pob-view-toggle').setAttribute('aria-pressed', String(pobBuildView));
+  if (!pobBuildView) {
+    // Canvas backing dimensions are retained while hidden; schedule a fresh
+    // paint even if ResizeObserver reports an unchanged width on return.
+    renderer?.resize();
+    renderer?.schedule();
+  }
+}
 function renderPobOverview() {
   const panel = $('pob-overview');
   if (!importedPob || !tree) { panel.hidden = true; return; }
@@ -619,6 +637,8 @@ function renderPobOverview() {
     ])), t('pobNoConfig'));
   addPobSection(groups, t('pobStats'), build.stats.map(stat => [stat.name, stat.value]));
   if (build.notes) addPobSection(groups, t('pobNotes'), [[t('pobNotes'), build.notes]]);
+  renderPobProfile(build,selectedIndex,state.language);
+  $('pob-view-toggle').hidden = false;
 }
 function applyImportedPobSelection(index, requireConfirmation = true) {
   if (!importedPob || !tree) return false;
@@ -669,7 +689,8 @@ async function importPobFromInput() {
     try { localStorage.setItem(POB_SOURCE_KEY, JSON.stringify({source, selectedIndex:data.activeIndex})); }
     catch { result.textContent = t('pobImported') + ' · Local storage unavailable'; }
     $('pob-code').value = '';
-    if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
+    closeOverlay();
+    setPobBuildView(true);
   } catch (error) {
     result.textContent = error.message;
   } finally {
@@ -686,6 +707,7 @@ async function restorePobSource() {
         ? saved.selectedIndex : data.activeIndex};
     renderPobOverview();
     if (state.mode === 'passive' && state.className === data.className) scene();
+    setPobBuildView(false);
   } catch(error) {
     console.warn('Saved PoB source cannot be restored:', error);
   }
@@ -759,6 +781,8 @@ function wireUI() {
   $('focus-start').addEventListener('click', focusStart);
   $('share-plan').addEventListener('click', sharePlan);
   $('pob-import').addEventListener('click', () => { void importPobFromInput(); });
+  $('pob-view-toggle').addEventListener('click', () => setPobBuildView(!pobBuildView));
+  $('pob-back-tree').addEventListener('click', () => setPobBuildView(false));
   $('pob-spec-select').addEventListener('change', e => {
     try {
       if (!applyImportedPobSelection(Number(e.target.value))) e.target.value = String(importedPob.selectedIndex);
@@ -778,6 +802,7 @@ function wireUI() {
   $('pob-delete').addEventListener('click', () => {
     if (!importedPob || !confirm(t('pobDeleteConfirm'))) return;
     importedPob = null;
+    setPobBuildView(false);
     try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
     $('pob-import-result').textContent = '';
     renderPobOverview();
