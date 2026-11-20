@@ -23,7 +23,12 @@ export class TreeRenderer {
   setScene(nodes, allEdges, options = {}) {
     this.nodes = nodes;
     this.nodeMap = new Map(nodes.map(n => [n.id, n]));
-    this.edges = allEdges.filter(e => this.nodeMap.has(e.a) && this.nodeMap.has(e.b));
+    // Long-distance logical links (class → separate ascendancy tree, Pathfinder portals)
+    // are not visible map connectors. Keep them in the model for path logic.
+    this.edges = allEdges.filter(e => {
+      const a = this.nodeMap.get(e.a), b = this.nodeMap.get(e.b);
+      return a && b && Math.hypot(a.x - b.x, a.y - b.y) <= 3000;
+    });
     this.orbitRadii = options.orbitRadii ?? [];
     this.allocated = options.allocated ?? new Set();
     this.rootIds = new Set(Array.isArray(options.rootId) ? options.rootId : [options.rootId]);
@@ -110,7 +115,9 @@ export class TreeRenderer {
       if ((a.x < left - 500 && b.x < left - 500) || (a.x > right + 500 && b.x > right + 500) || (a.y < top - 500 && b.y < top - 500) || (a.y > bottom + 500 && b.y > bottom + 500)) continue;
       const p = this.toScreen(a.x, a.y), q = this.toScreen(b.x, b.y);
       const activated = (this.allocated.has(a.id) || this.rootIds.has(a.id)) && (this.allocated.has(b.id) || this.rootIds.has(b.id));
-      ctx.strokeStyle = activated ? '#69baa9' : a.hiddenOracle || b.hiddenOracle ? '#69618a9c' : '#455262b8';
+      const selected = a.id === this.selectedId || b.id === this.selectedId;
+      // Unallocated edges stay understated at full-tree zoom; active/selected paths stand out.
+      ctx.strokeStyle = activated ? '#69baa9' : selected ? '#b8a174bb' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
       ctx.beginPath(); ctx.moveTo(p.x, p.y);
       const radius = (this.orbitRadii[Math.abs(edge.orbit)] || 0) * this.zoom;
       if (edge.orbit && radius > 0) {

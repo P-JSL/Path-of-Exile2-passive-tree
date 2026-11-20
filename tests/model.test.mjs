@@ -25,6 +25,23 @@ test('preserves coordinates, IDs, links, starts, classifications', () => {
   assert.equal(tree.edges.length, 5);
   assert.deepEqual(tree.orbitRadii, [0]);
 });
+test('one-based group indices resolve to their owning game-exported group', () => {
+  const raw = {
+    ...base,
+    groups: [
+      { x: 17, y: 30, nodes: [1] },
+      { x: 222, y: 30, nodes: [2] },
+      { x: 350, y: 30, nodes: [3] },
+      { x: 451, y: 30, nodes: [4] },
+      { x: 250, y: 110, nodes: [5, 8, 9] }
+    ]
+  };
+  const result = buildTree(raw);
+  assert.equal(result.nodes.get(1).x, 17);
+  assert.equal(result.nodes.get(2).x, 222);
+  assert.equal(result.nodes.get(3).x, 350);
+  assert.equal(result.nodes.get(4).x, 451);
+});
 test('Oracle unlock condition gates visibility in the ordinary scene', () => {
   const tree = buildTree(base);
   assert.equal(visibleNodes(tree, 'passive', 'Oracle', false).some(n => n.id === 4), false);

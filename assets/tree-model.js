@@ -7,7 +7,9 @@ export function buildTree(raw) {
   const radii = raw.constants.orbitRadii;
   const angles = raw.constants.orbitAnglesByOrbit;
   for (const value of Object.values(raw.nodes)) {
-    const group = raw.groups[value.group];
+    // GGG exports one-based node group numbers, while JSON groups is an array.
+    // Object-shaped fixtures and adapters retain their own direct group keys.
+    const group = Array.isArray(raw.groups) ? raw.groups[value.group - 1] : raw.groups[value.group];
     if (!group || !Number.isFinite(group.x) || !Number.isFinite(group.y)) continue;
     const a = angles[value.orbit]?.[value.orbitIndex] ?? 0;
     const r = radii[value.orbit] ?? 0;
