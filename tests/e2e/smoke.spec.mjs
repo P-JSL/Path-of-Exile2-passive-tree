@@ -306,3 +306,62 @@ test('live Oracle toggle refreshes passives without resetting the camera',async 
   expect(second.after).toEqual(second.before);
   expect(errors).toEqual([]);
 });
+
+
+test('Oracle change overlay clearly distinguishes revealed vs ghost nodes without moving camera',async ({page,isMobile})=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  if(isMobile) await page.locator('#mobile-settings').click();
+  const panel=page.locator('#oracle-settings');
+  await expect(panel).toBeVisible();
+  await expect(page.locator('#oracle-compare')).toBeChecked();
+  await expect(page.locator('#oracle-diff-summary')).toContainText(/(추가|extra)/i);
+  await expect(page.locator('#oracle-diff-banner')).toBeVisible();
+  await page.locator('#oracle-diff-details summary').click();
+  await expect(page.locator('.oracle-node-entry').first()).toBeVisible();
+  await page.evaluate(async()=>{
+    const {TreeRenderer}=await import('/assets/renderer.js');
+    const original=TreeRenderer.prototype.drawOracleDifferenceOverlay;
+    window.__oracleOverlayFrames=[];
+    TreeRenderer.prototype.drawOracleDifferenceOverlay=function(...args){
+      if(this.oracleComparison && this.oracleDifference?.nodes.length) {
+        window.__oracleOverlayFrames.push({
+          centerX:this.centerX,centerY:this.centerY,zoom:this.zoom,
+          shown:this.oracleShown,added:this.oracleDifference.nodes.length,
+          links:this.oracleDifference.edges.length
+        });
+        if(window.__oracleOverlayFrames.length>100) window.__oracleOverlayFrames.shift();
+      }
+      return original.apply(this,args);
+    };
+  });
+  await page.locator('#zoom-in').click();
+  await expect.poll(()=>page.evaluate(()=>window.__oracleOverlayFrames.length)).toBeGreaterThan(0);
+  const initially=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
+  expect(initially.added).toBeGreaterThan(0);
+  expect(initially.shown).toBe(true);
+  await page.locator('#oracle-toggle').uncheck();
+  await expect(page.locator('#oracle-diff-banner')).toHaveAttribute('data-view','preview');
+  await expect.poll(()=>page.evaluate(()=>window.__oracleOverlayFrames.at(-1)?.shown)).toBe(false);
+  const ghost=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
+  expect([ghost.centerX,ghost.centerY,ghost.zoom])
+    .toEqual([initially.centerX,initially.centerY,initially.zoom]);
+  await page.locator('#oracle-toggle').check();
+  await expect(page.locator('#oracle-diff-banner')).toHaveAttribute('data-view','shown');
+  await expect.poll(()=>page.evaluate(()=>window.__oracleOverlayFrames.at(-1)?.shown)).toBe(true);
+  const revealed=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
+  expect([revealed.centerX,revealed.centerY,revealed.zoom])
+    .toEqual([initially.centerX,initially.centerY,initially.zoom]);
+
+  // All added nodes can be inspected by their original skill IDs.
+  const first=page.locator('.oracle-node-entry').first();
+  const id=await first.getAttribute('data-node-id');
+  await first.click();
+  await expect(page.locator('#detail-id')).toHaveText(id);
+  const selected=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
+  expect([selected.centerX,selected.centerY,selected.zoom])
+    .toEqual([initially.centerX,initially.centerY,initially.zoom]);
+  expect(errors).toEqual([]);
+});
