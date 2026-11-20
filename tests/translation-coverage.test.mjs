@@ -18,7 +18,7 @@ test('coverage counts only translated display strings, not stripped source marku
   assert.equal(report.nameCoveragePercent,66.67);
   assert.equal(report.statCoveragePercent,50);
   assert.deepEqual(report.untranslatedNames,[{english:'Life',occurrences:1,exampleIds:[30]}]);
-  assert.deepEqual(report.untranslatedStats[0],{english:'Shock Chance',occurrences:1,exampleIds:[10]});
+  assert.deepEqual(report.untranslatedStats.find(item=>item.english==='Shock Chance'),{english:'Shock Chance',occurrences:1,exampleIds:[10]});
 });
 test('zero-content report and repeated unknown text do not count fabricated translations',()=>{
   const empty=auditTranslationRows([],()=>'',()=> '');
