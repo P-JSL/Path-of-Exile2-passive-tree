@@ -80,6 +80,21 @@ export function validateAllocationRoute(tree, existing, route, context = {}) {
 export function auditAllocations(tree, selected, context = {}) {
   const current = new Set(selected);
   const findings = [];
+  // Old links or browser plans can contain isolated branches. Report them
+  // rather than deleting any saved nodes without the user's explicit action.
+  const starts = Array.isArray(context.roots) ? context.roots : [context.roots];
+  const reachable = new Set(starts.filter(id => tree.nodes.has(id)));
+  const queue = [...reachable];
+  for (let index = 0; index < queue.length; index++) {
+    for (const neighbor of tree.adjacent.get(queue[index]) || []) {
+      if (!reachable.has(neighbor) && current.has(neighbor)) {
+        reachable.add(neighbor); queue.push(neighbor);
+      }
+    }
+  }
+  const isolated = [...current].filter(id =>
+    tree.nodes.has(id) && !reachable.has(id) && !tree.nodes.get(id)?.isFreeAllocate);
+  if (isolated.length) findings.push({reason:'disconnected',nodeIds:isolated});
   for (const group of choiceGroups(tree)) {
     const allocated = group.options.filter(id => current.has(id));
     if (allocated.length > 1) findings.push({reason:'exclusiveChoice',nodeIds:allocated,groupId:group.parent});
