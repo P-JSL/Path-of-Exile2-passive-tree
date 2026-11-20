@@ -78,8 +78,17 @@ Helm Base
 +54 to maximum Life
 +18% to Fire Resistance
 Additional source-only line</Item>
+      <Item id="3">Rarity: RARE
+Alternate Helm
+Another Base
++66 to maximum Mana</Item>
       <ItemSet id="1" title="Gear"><Slot name="Helmet" itemId="2"/></ItemSet>
+      <ItemSet id="2" title="Alternate Gear"><Slot name="Helmet" itemId="3"/></ItemSet>
     </Items>
+    <Skills activeSkillSet="1">
+      <SkillSet id="1" title="Boss"><Skill label="Spark"><Gem nameSpec="Spark" level="20"/></Skill></SkillSet>
+      <SkillSet id="2" title="Mapping"><Skill label="Tempest"><Gem nameSpec="Tempest" level="15"/></Skill></SkillSet>
+    </Skills>
     </PathOfBuilding2>`;
 
   // Prevent search results from obscuring the import form (especially on phones).
@@ -88,6 +97,18 @@ Additional source-only line</Item>
   await page.locator('#pob-code').fill(xml);
   await page.locator('#pob-import').click();
   await expect(page.locator('#pob-build-stage')).toBeVisible();
+  const gearSelect=page.locator('#pob-profile-gear-select');
+  const skillSelect=page.locator('#pob-profile-skills-select');
+  await expect(gearSelect).toHaveValue('1');
+  await expect(skillSelect).toHaveValue('1');
+  await gearSelect.selectOption('2');
+  await expect(page.locator('#pob-profile-equipment')).toContainText('Alternate Helm');
+  await gearSelect.selectOption('1');
+  await expect(page.locator('#pob-profile-equipment')).toContainText('Mobile Helm');
+  await skillSelect.selectOption('2');
+  await expect(page.locator('#pob-profile-skill-list')).toContainText('Tempest');
+  await skillSelect.selectOption('1');
+  await expect(page.locator('#pob-profile-skill-list')).toContainText('Spark');
   const originalItem=page.locator('.pob-equipment-tile').filter({hasText:'Mobile Helm'});
   await originalItem.locator('.pob-source-details summary').click();
   await expect(originalItem.locator('.pob-source-details pre')).toContainText('Additional source-only line');

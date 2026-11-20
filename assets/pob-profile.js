@@ -11,11 +11,11 @@ export function summarizePobItem(raw = '') {
   return {rarity,title,description,raw};
 }
 
-export function profileSnapshot(build, specIndex = build.activeIndex) {
+export function profileSnapshot(build, specIndex = build.activeIndex, selected = {}) {
   const spec = build.specs[specIndex];
   if (!spec) throw new Error('PoB passive specification is unavailable');
-  const itemSet = build.itemSets.find(set => set.id === build.activeItemSet) || build.itemSets[0];
-  const skillSet = build.skillSets.find(set => set.id === build.activeSkillSet) || build.skillSets[0];
+  const itemSet = build.itemSets.find(set => set.id === (selected.itemSetId ?? build.activeItemSet)) || build.itemSets[0];
+  const skillSet = build.skillSets.find(set => set.id === (selected.skillSetId ?? build.activeSkillSet)) || build.skillSets[0];
   return {
     spec, itemSet, skillSet,
     equipment:(itemSet?.slots || []).map(slot =>
@@ -48,8 +48,8 @@ const statsKo = {
   ChaosResist:'카오스 저항', MovementSpeed:'이동 속도', Spirit:'정신력',
   EffectiveHitPool:'유효 생명력', PhysicalDamageReduction:'물리 피해 감소'
 };
-export function renderPobProfile(build, specIndex, language = 'ko') {
-  const {spec,equipment,skillGroups,jewels,stats,itemSet,skillSet} = profileSnapshot(build,specIndex);
+export function renderPobProfile(build, specIndex, language = 'ko', selected = {}) {
+  const {spec,equipment,skillGroups,jewels,stats,itemSet,skillSet} = profileSnapshot(build,specIndex,selected);
   const displayName = [build.ascendancyName || build.className, build.level ? 'Lv ' + build.level : '']
     .filter(Boolean).join(' · ');
   document.getElementById('pob-profile-name').textContent = displayName || 'PoB2';
