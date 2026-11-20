@@ -7,7 +7,7 @@ import { buildExtraTree } from './extra-model.js';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, tr, passiveName, passiveStat } from './i18n.js';
 import { ATTRIBUTES, isAnyAttributeNode, selectedAttributeStat, validAttributeChoices, encodeAttributeChoices, decodeAttributeChoices } from './attributes.js';
 import { parseSkillKeywords, verifiedSkillMarkup, lookupKeyword, builtInKeywordDescription } from './skill-notes.js';
-import { validateAllocationRoute, auditAllocations, countUsedPoints } from './allocation-rules.js';
+import { validateAllocationRoute, auditAllocations, countUsedPoints, blockedChoiceOptions } from './allocation-rules.js';
 
 const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
@@ -72,7 +72,7 @@ function updateDataSummary() {
   $('data-summary').textContent = t('summary', { nodes: format(tree.nodes.size), asc: tree.ascendancies.length, atlas: format(extraTrees.atlas?.nodes.size), genesis: format(extraTrees.genesis?.nodes.size) });
 }
 const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {}, budgets: {} };
-let currentNodes = [], currentIds = new Set();
+let currentNodes = [], currentIds = new Set(), blockedOptions = new Set();
 let searchCache = null;
 let searchResults = [], searchIndex = -1, searchTimer = null;
 let toastTimeout;
@@ -285,11 +285,12 @@ function saveAllocated(set) {
     const selected = state.attributeChoices[state.className];
     if (selected) for (const id of Object.keys(selected)) if (!set.has(Number(id))) delete selected[id];
   }
+  blockedOptions = blockedChoiceOptions(activeTree(), set);
   persist(); updatePoints(); renderAllocatedList();
 }
 function oracleUnlocked() { return (state.ascAllocations.Oracle || []).includes(5571); }
 function nodeAllowed(n) {
-  return !!n && (!n.hiddenOracle || (state.ascendancy === 'Oracle' && oracleUnlocked())) && !n.isOnlyImage && !n.isAscendancyStart && !n.classesStart && !rootIds().includes(n.id);
+  return !!n && !blockedOptions.has(n.id) && (!n.hiddenOracle || (state.ascendancy === 'Oracle' && oracleUnlocked())) && !n.isOnlyImage && !n.isAscendancyStart && !n.classesStart && !rootIds().includes(n.id);
 }
 function populateClasses() {
   $('class-select').replaceChildren();
@@ -329,6 +330,7 @@ function scene() {
   const model = activeTree();
   currentNodes = isExtraMode() ? [...model.nodes.values()] : visibleNodes(tree, state.mode, state.ascendancy, state.showOracle);
   currentIds = new Set(currentNodes.map(n => n.id));
+  blockedOptions = blockedChoiceOptions(model, allocatedSet());
   searchCache = null;
   if (state.selectedId && !currentIds.has(state.selectedId)) state.selectedId = null;
   applyLanguageText(); populateAscendancies(); updateHeader();
@@ -494,6 +496,9 @@ function showDetail(n) {
   } else if (n.hiddenOracle && !oracleUnlocked()) {
     button.disabled = true; button.textContent = t('lockedAlloc');
     notice.hidden = false; notice.textContent = t('lockedNotice');
+  } else if (!allocated.has(n.id) && blockedOptions.has(n.id)) {
+    button.disabled = true; button.textContent = t('ruleExclusiveChoice');
+    notice.hidden = false; notice.textContent = t('ruleExclusiveChoice');
   } else {
     button.disabled = false; button.textContent = t(allocated.has(n.id) ? 'refund' : 'allocate');
   }

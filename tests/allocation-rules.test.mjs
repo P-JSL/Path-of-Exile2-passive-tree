@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {choiceGroups, pointCost, countUsedPoints, validateAllocationRoute, auditAllocations} from '../assets/allocation-rules.js';
+import {choiceGroups, blockedChoiceOptions, pointCost, countUsedPoints, validateAllocationRoute, auditAllocations} from '../assets/allocation-rules.js';
 
 const records = [
   {id:1,name:'Start',classesStart:['Druid'],connections:[{id:2}]},
@@ -70,4 +70,19 @@ test('free special-node allocations can be validated without consuming a point',
   const result = validateAllocationRoute(tree,new Set([2]),[8],{...base,maxPoints:1});
   assert.equal(result.ok,true);
   assert.equal(countUsedPoints(tree,result.allocated),1);
+});
+
+test('blocked options are derived only from game-defined choices',()=>{
+  assert.deepEqual([...blockedChoiceOptions(tree,new Set([6]))],[7]);
+  assert.deepEqual([...blockedChoiceOptions(tree,new Set([2,5]))],[]);
+  assert.deepEqual([...blockedChoiceOptions(tree,new Set([7]))],[6]);
+});
+
+test('imported allocations report nonallocatable and other-ascendancy nodes without changing them',()=>{
+  const existing=new Set([1,2,10,101]);
+  const audit=auditAllocations(tree,existing,base);
+  assert.ok(audit.some(issue=>issue.reason==='unallocatable' && issue.nodeIds.includes(1)));
+  assert.ok(audit.some(issue=>issue.reason==='unallocatable' && issue.nodeIds.includes(10)));
+  assert.ok(audit.some(issue=>issue.reason==='otherAscendancy' && issue.nodeIds.includes(101)));
+  assert.deepEqual([...existing],[1,2,10,101]);
 });
