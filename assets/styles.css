@@ -299,3 +299,18 @@ box-shadow:0 5px 18px #0008;pointer-events:none;line-height:1.5}
 .pob-approx-translation{display:block;margin-top:9px;padding:7px 8px;
 border-left:3px solid #9171b6;background:#2c2840;color:#d1bcdf;
 font-size:10px;line-height:1.55;overflow-wrap:anywhere}
+
+/* Compact mobile comparison chip; keeps the legend and nearby passive nodes readable. */
+.oracle-diff-banner{max-width:190px;padding:6px 9px;font-size:10px;line-height:1.4;
+  border-width:1px;border-radius:7px;box-shadow:0 3px 9px #0005}
+@media(max-width:850px){.oracle-diff-banner{right:8px;bottom:46px;max-width:40%;
+  padding:5px 7px;font-size:10px;line-height:1.4}}
+/* Rounded PoB values are compact; exact PoB numbers remain available on tap. */
+.pob-stat-raw{margin-top:6px;padding-top:5px;border-top:1px solid #33475a;min-width:0}
+.pob-stat-raw>summary{cursor:pointer;color:#b7c7d6;font-size:10px;line-height:1.5;
+  min-height:24px;display:flex;align-items:center;list-style:none}
+.pob-stat-raw>summary::-webkit-details-marker{display:none}
+.pob-stat-raw>summary:before{content:'▸';margin-right:5px}
+.pob-stat-raw[open]>summary:before{content:'▾'}
+.pob-stat-raw>code{display:block;margin-top:5px;overflow-wrap:anywhere;
+  font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:#deccab}
