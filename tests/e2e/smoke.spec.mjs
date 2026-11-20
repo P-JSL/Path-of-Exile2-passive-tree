@@ -420,3 +420,73 @@ test('switching Korean/English re-renders original PoB item details and keeps th
   });
   expect(errors).toEqual([]);
 });
+
+
+test('imported-build reset clears only imported plans, requires consent, and works in both views',async ({page,isMobile})=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  const planKey='exile-tree-plans-v1',sourceKey='exile-tree-pob2-source-v1';
+  await page.addInitScript(({planKey})=>{
+    localStorage.setItem(planKey,JSON.stringify({
+      className:'Druid',ascendancy:'Oracle',mode:'passive',language:'ko',
+      allocations:{Monk:[42]},ascAllocations:{Invoker:[77]},
+      extraAllocations:{atlas:[11],genesis:[22]},
+      attributeChoices:{},budgets:{passive:120,atlas:5}
+    }));
+  },{planKey});
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  if(isMobile) await page.locator('#mobile-settings').click();
+  await page.locator('#search-input').fill('fire');
+  await expect(page.locator('.result-item').first()).toBeVisible();
+  const id=await page.locator('.result-item').first().getAttribute('data-node-id');
+  await page.locator('#search-clear').click();
+
+  const xml=`<PathOfBuilding2><Build className="Druid" ascendClassName="Oracle" level="66"/>
+    <Tree activeSpec="1"><Spec nodes="${id}" treeVersion="0_5" title="Reset test"/></Tree>
+    </PathOfBuilding2>`;
+  for (const action of ['profile','details']) {
+    if(isMobile && action==='details') await page.locator('#mobile-settings').click();
+    await page.locator('.side-fold').filter({has:page.locator('#pob-code')}).locator('summary').click();
+    await page.locator('#pob-code').fill(xml);
+    await page.locator('#pob-import').click();
+    await expect(page.locator('#pob-build-stage')).toBeVisible();
+    await expect(page.locator('#pob-profile-reset')).toBeVisible();
+    const before=await page.evaluate(({sourceKey})=>Boolean(localStorage.getItem(sourceKey)),{sourceKey});
+    expect(before).toBe(true);
+
+    if(action==='details') {
+      await page.locator('#pob-back-tree').click();
+      if(isMobile) await page.locator('#mobile-details').click();
+      await expect(page.locator('#pob-reset')).toBeVisible();
+    }
+    const reset=page.locator(action==='profile'?'#pob-profile-reset':'#pob-reset');
+    page.once('dialog',dialog=>dialog.dismiss());
+    await reset.click();
+    expect(await page.evaluate(key=>Boolean(localStorage.getItem(key)),sourceKey)).toBe(true);
+    if(action==='profile') await expect(page.locator('#pob-build-stage')).toBeVisible();
+
+    page.once('dialog',dialog=>{
+      expect(dialog.message()).toContain('직업');
+      expect(dialog.message()).toContain('직접 수정한');
+      return dialog.accept();
+    });
+    await reset.click();
+    await expect(page.locator('#pob-build-stage')).toHaveAttribute('hidden','');
+    await expect(page.locator('#pob-overview')).toHaveAttribute('hidden','');
+    await expect(page.locator('#weapon-set-controls')).toHaveAttribute('hidden','');
+    await expect(page.locator('#pob-jewel-detail')).toHaveAttribute('hidden','');
+    const saved=await page.evaluate(({planKey,sourceKey})=>({
+      source:localStorage.getItem(sourceKey),
+      plan:JSON.parse(localStorage.getItem(planKey))
+    }),{planKey,sourceKey});
+    expect(saved.source).toBeNull();
+    expect(saved.plan.allocations.Druid).toBeUndefined();
+    expect(saved.plan.ascAllocations.Oracle).toBeUndefined();
+    expect(saved.plan.allocations.Monk).toEqual([42]);
+    expect(saved.plan.ascAllocations.Invoker).toEqual([77]);
+    expect(saved.plan.extraAllocations).toEqual({atlas:[11],genesis:[22]});
+    expect(saved.plan.budgets).toEqual({passive:120,atlas:5});
+  }
+  expect(errors).toEqual([]);
+});
