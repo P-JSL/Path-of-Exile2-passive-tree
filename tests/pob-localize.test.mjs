@@ -64,3 +64,12 @@ test('generated rare names use source-matched terms without claiming exact trans
     /등급: 희귀\n침울한 구원\n선대의 티아라/);
   assert.equal(localizePobSlot('Weapon Swap 1'),'교체 무기 1');
 });
+
+test('escaped newline PoB jewels keep every line when translated',()=>{
+  const literal='Rarity: Rare\\nIntegration Jewel\\n+12 to Life';
+  const translated=localizePobItemText(literal,'ko',d);
+  assert.match(translated,/등급: 희귀/);
+  assert.match(translated,/Integration Jewel/);
+  assert.match(translated,/\+12 to Life/);
+  assert.equal(localizePobItemText(literal,'en',d),literal);
+});
