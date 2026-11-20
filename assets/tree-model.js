@@ -69,7 +69,19 @@ export function shortestAllocationPath(tree, target, sceneIds, allocated, rootId
   const roots = Array.isArray(rootId) ? rootId : [rootId];
   if (!sceneIds.has(target) || !roots.some(id => sceneIds.has(id))) return null;
   if (roots.includes(target)) return [];
-  const sources = [...roots, ...allocated].filter(id => sceneIds.has(id));
+  // Imported plans may contain disconnected nodes. Only allocations reachable
+  // from the actual class start can extend new paths, preventing teleportation.
+  const connected = new Set(roots.filter(id => sceneIds.has(id)));
+  const connectedQueue = [...connected];
+  for (let index = 0; index < connectedQueue.length; index++) {
+    const id = connectedQueue[index];
+    for (const next of tree.adjacent.get(id) ?? []) {
+      if (!connected.has(next) && sceneIds.has(next) && allocated.has(next)) {
+        connected.add(next); connectedQueue.push(next);
+      }
+    }
+  }
+  const sources = [...connected];
   const queue = [], seen = new Set(), parent = new Map();
   for (const id of sources) if (!seen.has(id)) { seen.add(id); queue.push(id); }
   for (let index = 0; index < queue.length; index++) {
