@@ -3,10 +3,10 @@ export const DEFAULT_LANGUAGE = 'ko';
 export const SUPPORTED_LANGUAGES = ['ko', 'en'];
 const STRINGS = {
   ko: {
-    pobProfileSubtitle:'PATH OF BUILDING 2 · 빌드 프로필',pobBackTree:'패시브 트리로 돌아가기',
+    pobProfileSubtitle:'PoB2 · 빌드 상세',pobBackTree:'패시브 트리로 돌아가기',
     pobShowProfile:'PoB 빌드 보기',pobShowTree:'패시브 트리 보기',
-    pobEquipmentHeading:'장착 장비',pobGearHint:'PoB2 원본의 장비 슬롯과 아이템 설명입니다.',
-    pobStatsHeading:'PoB 능력치',pobStatHint:'원본 코드에 저장된 계산 결과이며 다시 계산하지 않습니다.',
+    pobEquipmentHeading:'장착 장비',pobGearHint:'장비의 전체 옵션을 바로 보여줍니다. 정확한 한글명이 없는 원문은 그대로 표시합니다.',
+    pobStatsHeading:'PoB 능력치',pobStatHint:'PoB2에 저장된 능력치입니다. 숫자는 정밀도를 유지하며 다시 계산하지 않습니다.',
     pobSkillsHeading:'스킬과 보조 젬',pobJewelsHeading:'주얼 및 트리 구성',
     pobImportTitle:'Path of Building 2 가져오기',pobCodeLabel:'PoB2 공유 코드 또는 XML',
     pobPlaceholder:'PoB2에서 Import/Export → Generate로 생성한 코드를 붙여 넣으세요',

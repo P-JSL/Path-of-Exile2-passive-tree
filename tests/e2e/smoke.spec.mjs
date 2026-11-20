@@ -66,7 +66,10 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
   expect(socketId).not.toBe(first);
   expect(socketId).not.toBe(second);
 
-  const xml = `<PathOfBuilding2><Build className="Druid" ascendClassName="Oracle" level="77"/>
+  const xml = `<PathOfBuilding2><Build className="Druid" ascendClassName="Oracle" level="77">
+      <PlayerStat stat="AverageHit" value="5025251.53575"/>
+      <PlayerStat stat="EnduranceChargesMax" value="3"/>
+    </Build>
     <Tree activeSpec="1"><Spec title="W1 W2 integration" treeVersion="0_5" nodes="${socketId},${first},${second}">
       <WeaponSet1 nodes="${first}"/><WeaponSet2 nodes="${second}"/>
       <Sockets><Socket nodeId="${socketId}" itemId="1"/></Sockets>
@@ -106,12 +109,20 @@ Another Base
   await gearSelect.selectOption('1');
   await expect(page.locator('#pob-profile-equipment')).toContainText('Mobile Helm');
   await skillSelect.selectOption('2');
-  await expect(page.locator('#pob-profile-skill-list')).toContainText('Tempest');
+  await expect(page.locator('#pob-profile-skill-list')).toContainText('폭풍');
   await skillSelect.selectOption('1');
-  await expect(page.locator('#pob-profile-skill-list')).toContainText('Spark');
+  await expect(page.locator('#pob-profile-skill-list')).toContainText('전기불꽃');
+  await expect(page.locator('#pob-profile-stat-list')).toContainText('평균 적중 피해');
+  await expect(page.locator('#pob-profile-stat-list')).toContainText('5,025,251.53575');
+  await expect(page.locator('#pob-profile-stat-list')).toContainText('최대 인내 충전 수');
   const originalItem=page.locator('.pob-equipment-tile').filter({hasText:'Mobile Helm'});
-  await originalItem.locator('.pob-source-details summary').click();
-  await expect(originalItem.locator('.pob-source-details pre')).toContainText('Additional source-only line');
+  const detail=originalItem.locator('.pob-source-details');
+  await expect(detail).toHaveAttribute('open','');
+  await expect(detail.locator('pre')).toBeVisible();
+  await expect(detail.locator('pre')).toContainText('등급: 희귀');
+  await expect(detail.locator('pre')).toContainText('최대 생명력 +54');
+  await expect(detail.locator('pre')).toContainText('화염 저항 +18%');
+  await expect(detail.locator('pre')).toContainText('Additional source-only line');
   await page.locator('#pob-back-tree').click();
   await expect(page.locator('#weapon-set-controls')).toBeVisible();
 
@@ -169,7 +180,7 @@ test('compressed URL-safe PoB2 share codes decode in desktop and touch WebKit', 
   await page.locator('#pob-code').fill(code);
   await page.locator('#pob-import').click();
   await expect(page.locator('#pob-build-stage')).toBeVisible();
-  await expect(page.locator('#pob-meta')).toContainText('Nodes 1');
+  await expect(page.locator('#pob-meta')).toContainText('패시브 1개');
   const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('exile-tree-pob2-source-v1') || 'null'));
   expect(stored?.source).toBe(code);
   expect(errors).toEqual([]);
@@ -367,5 +378,32 @@ test('Oracle change overlay clearly distinguishes revealed vs ghost nodes withou
   const selected=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
   expect([selected.centerX,selected.centerY,selected.zoom])
     .toEqual([initially.centerX,initially.centerY,initially.zoom]);
+  expect(errors).toEqual([]);
+});
+
+
+test('switching Korean/English re-renders original PoB item details and keeps the source intact',async ({page,isMobile})=>{
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  if(isMobile) await page.locator('#mobile-settings').click();
+  // Test the game translation file as a separate source-backed resource.
+  const dict=await page.evaluate(async()=>{
+    const response=await fetch('./data/pob-ko.json');
+    if(!response.ok) throw new Error('PoB locale data unavailable');
+    const data=await response.json();
+    const {localizePobName,localizePobItemLine}=await import('/assets/pob-localize.js');
+    return {
+      gem:localizePobName('Align Fate','ko',data),
+      unique:localizePobName("Runeseeker's Call",'ko',data),
+      base:localizePobName('Ancestral Tiara','ko',data),
+      stat:localizePobItemLine('+18% to Fire Resistance','ko',data)
+    };
+  });
+  expect(dict).toEqual({
+    gem:'운명 정렬',unique:'룬 탐구자의 소명',
+    base:'선대의 티아라',stat:'화염 저항 +18%'
+  });
   expect(errors).toEqual([]);
 });

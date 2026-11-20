@@ -276,3 +276,26 @@ box-shadow:0 5px 18px #0008;pointer-events:none;line-height:1.5}
 .oracle-diff-banner[data-view="preview"]{border-style:dashed;color:#e8caf3;background:#241b33ed}
 @media(max-width:850px){.oracle-diff-banner{right:9px;bottom:48px;max-width:55%;font-size:9px;padding:7px}
 .oracle-node-entry{min-height:44px}}
+
+/* Readable PoB gear: show every original modifier translated when possible.
+   Avoid the old 3-column PoB grid: items are too narrow on phones. */
+.pob-equipment-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:11px}
+.pob-equipment-grid .pob-equipment-tile{grid-column:auto;grid-row:auto;min-height:0}
+.pob-equipment-tile{padding:12px;overflow:visible}
+.pob-equipment-tile>p:empty{display:none}
+.pob-equipment-tile>strong{font-size:14px;margin:8px 0 10px}
+.pob-source-details[open]>pre{max-height:none;overflow:visible;font-size:11px;line-height:1.7}
+.pob-source-details[open]>summary{color:#dbbdf1}
+.pob-profile-gear .pob-profile-hint{margin-bottom:10px}
+.pob-stat-row>strong{font-size:14px;overflow-wrap:anywhere}
+@media(max-width:850px){
+ .pob-equipment-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+ .pob-equipment-grid .pob-equipment-tile{grid-column:auto;grid-row:auto}
+ .pob-equipment-tile{padding:13px 14px}
+ .pob-source-details[open]>pre{font-size:12px;max-height:none;overflow:visible}
+ .pob-profile-stat-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+.pob-approx-translation{display:block;margin-top:9px;padding:7px 8px;
+border-left:3px solid #9171b6;background:#2c2840;color:#d1bcdf;
+font-size:10px;line-height:1.55;overflow-wrap:anywhere}
