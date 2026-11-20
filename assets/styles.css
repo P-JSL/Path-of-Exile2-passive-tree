@@ -10,3 +10,27 @@
 
 @media(max-width:850px){.tree-tabs{gap:0}.tree-tab{padding:0 8px;font-size:11px;max-width:none}}
 @media(max-width:390px){.tree-tab{padding:0 5px;font-size:10px}}
+
+/* Compact allocated-node inventory; individual skills remain selectable on desktop and iPhone. */
+.details-placeholder{flex:0 0 auto;min-height:110px}
+.allocated-panel{border-top:1px solid #344456;margin-top:18px;padding-top:16px;min-width:0}
+.allocated-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:#e8d6b1}
+.allocated-head>span{background:#253444;border-radius:999px;padding:3px 9px;color:#b8e4d3;font-size:11px}
+.allocated-hint{margin-top:7px;line-height:1.5}
+.allocated-list{display:flex;flex-direction:column;gap:9px;margin:13px 0 12px}
+.allocated-group{border:1px solid #344255;border-radius:8px;background:#15202d;overflow:hidden}
+.allocated-group summary{padding:10px;list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#d6dce0;font-weight:700;font-size:12px}
+.allocated-group summary::-webkit-details-marker{display:none}
+.allocated-group summary:before{content:'▸';color:#c7aa74;font-size:10px}
+.allocated-group[open] summary:before{content:'▾'}
+.allocated-group summary span:first-of-type{flex:1}
+.allocated-group-count{font-variant-numeric:tabular-nums;color:#a3c7bc}
+.allocated-items{max-height:390px;overflow-y:auto;overscroll-behavior:contain;border-top:1px solid #344255}
+.allocated-item{width:100%;padding:11px 12px;background:transparent;color:#e6e3dd;text-align:left;border:0;border-bottom:1px solid #293746;display:flex;flex-direction:column;gap:5px}
+.allocated-item:last-child{border-bottom:0}
+.allocated-item:hover,.allocated-item:focus-visible,.allocated-item.active{background:#263748}
+.allocated-item-name{font-size:12px;line-height:1.4;font-weight:700;color:#e6c991;overflow-wrap:anywhere}
+.allocated-item-desc{font-size:11px;line-height:1.45;color:#a0bdcc;overflow-wrap:anywhere;white-space:pre-line}
+.allocated-item-meta{font-size:10px;color:#8b9dac}
+.allocated-empty{padding:13px 11px;font-size:11px;color:#8c9eac;line-height:1.5}
+@media(max-width:850px){.allocated-items{max-height:42svh}.allocated-list{padding-bottom:10px}}
