@@ -52,6 +52,13 @@
           <div class="control-head"><span data-i18n="oracleHeader">ORACLE · HIDDEN PATHS</span><span class="oracle-mark">◆</span></div>
           <label class="switch-line"><input id="oracle-toggle" type="checkbox" checked><span><span data-i18n="oracleToggle">보이지 않는 길 노드 표시</span></span></label>
           <p class="helper" data-i18n="oracleHint">오라클 전직에서 열리는 추가 패시브입니다. 배분하려면 전직 노드를 먼저 획득해야 합니다.</p>
+          <label class="switch-line oracle-compare-switch"><input id="oracle-compare" type="checkbox" checked><span data-i18n="oracleCompareToggle">추가되는 위치를 지도에 강조</span></label>
+          <div class="oracle-diff-summary" id="oracle-diff-summary" aria-live="polite"></div>
+          <p class="oracle-diff-help" id="oracle-diff-help" data-i18n="oracleCompareHelp">실선은 표시된 추가 노드, 점선은 숨겨진 위치의 미리보기입니다. 노드 선택 시 화면 위치는 그대로 유지됩니다.</p>
+          <details class="oracle-diff-details" id="oracle-diff-details">
+            <summary data-i18n="oracleDiffList">새로 나타나는 노드 위치·이름 확인</summary>
+            <div id="oracle-diff-list" class="oracle-diff-list"></div>
+          </details>
         </section>
         <details class="side-fold">
           <summary data-i18n="importOptions">PoB2 빌드 가져오기</summary>
@@ -146,6 +153,7 @@
           <div id="loading-overlay" class="loading-overlay" role="status"><div class="loader"></div><strong><span data-i18n="loading">실제 패시브 데이터 로드 중</span></strong><span><span data-i18n="loadingDesc">게임 데이터와 연결 관계를 처리하고 있습니다.</span></span></div>
           <div id="error-overlay" class="loading-overlay error-overlay" hidden><strong><span data-i18n="loadError">데이터를 불러오지 못했습니다.</span></strong><p id="error-message"></p><button id="retry-button" class="wide-button"><span data-i18n="retry">다시 시도</span></button></div>
           <div class="canvas-badge" id="status-badge">관찰 모드 · 노드를 선택해 정보를 확인하세요</div>
+          <div id="oracle-diff-banner" class="oracle-diff-banner" role="status" aria-live="polite" hidden></div>
           <div id="search-navigator" class="search-navigator" role="group" aria-label="패시브 검색 이동" hidden>
             <div class="search-navigator-info"><strong id="search-nav-name"></strong><span id="search-nav-count"></span></div>
             <div class="search-navigator-actions">
@@ -155,7 +163,7 @@
             </div>
           </div>
           <div class="map-controls"><button id="zoom-in" aria-label="zoomIn" data-i18n-aria="zoomIn" title="확대">+</button><button id="zoom-out" aria-label="zoomOut" data-i18n-aria="zoomOut" title="축소">−</button><button id="fit-all" aria-label="fit" data-i18n-aria="fit" title="전체 보기">⛶</button><button id="focus-start" aria-label="focus" data-i18n-aria="focus" title="시작 지점">◎</button></div>
-          <div class="canvas-legend"><span><i class="dot-base"></i><span data-i18n="legendNormal">기본</span></span><span><i class="dot-notable"></i><span data-i18n="legendNotable">주요</span></span><span><i class="dot-allocated"></i><span data-i18n="legendAllocated">배분</span></span><span id="oracle-legend" hidden><i class="dot-oracle"></i><span data-i18n="legendOracle">오라클 추가</span></span></div>
+          <div class="canvas-legend"><span><i class="dot-base"></i><span data-i18n="legendNormal">기본</span></span><span><i class="dot-notable"></i><span data-i18n="legendNotable">주요</span></span><span><i class="dot-allocated"></i><span data-i18n="legendAllocated">배분</span></span><span id="oracle-legend" hidden><i class="dot-oracle"></i><span id="oracle-legend-label" data-i18n="legendOracle">오라클 추가</span></span></div>
         </div>
         <div class="mobile-bottom-bar"><button id="mobile-search">⌕ <span><span data-i18n="mobileSearch">노드 검색</span></span></button><button id="mobile-details">◈ <span><span data-i18n="mobileDetails">노드 정보</span></span></button><button id="mobile-settings">☰ <span data-i18n="mobileSettings">설정</span></button></div>
       </main>
