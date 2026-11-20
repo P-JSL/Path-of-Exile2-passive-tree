@@ -281,7 +281,7 @@ function scene() {
     ? t('oracleStatus',{status:t(oracleUnlocked()?'oracleReady':'oracleLocked')})
     : t('sceneDefault');
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
-  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName });
+  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className) });
   $('connection-count').textContent = t('edgeCount',{count:renderer.edges.length.toLocaleString(state.language)});
   renderAllocatedList(); refreshSearch(false); persist();
 }
