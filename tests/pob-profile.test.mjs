@@ -50,6 +50,11 @@ test('profile renders safely using textContent without interpolating build HTML'
     assert.match(ids.get('pob-profile-version').textContent,/0_5/);
     const gear=ids.get('pob-profile-equipment').children[0].children[0];
     assert.equal(gear.children[1].textContent,'Warm Coat');
+    assert.equal(gear.children[3].name,'details');
+    assert.equal(gear.children[3].children[1].textContent,source.itemSets[0].slots[0].text);
+    const jewel=ids.get('pob-profile-jewel-list').children[0].children[1];
+    assert.equal(jewel.children[2].name,'details');
+    assert.equal(jewel.children[2].children[1].textContent,source.specs[0].sockets[0].text);
     const stats=ids.get('pob-profile-stat-list').children[0].children;
     assert.equal(stats[0].children[0].textContent,'전체 DPS');
     assert.equal(stats[0].children[1].textContent,'1467894');

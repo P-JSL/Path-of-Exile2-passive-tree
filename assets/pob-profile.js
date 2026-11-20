@@ -32,6 +32,14 @@ function element(name, className, content) {
   if (content !== undefined) node.textContent = content;
   return node;
 }
+function fullSourceDisclosure(raw, language) {
+  const details=element('details','pob-source-details');
+  details.append(
+    element('summary','',language === 'ko' ? '원본 옵션 전체 보기' : 'Show all original modifiers'),
+    element('pre','',raw)
+  );
+  return details;
+}
 const statsKo = {
   TotalDPS:'전체 DPS', TotalDotDPS:'지속 피해 DPS', FullDPS:'총 피해 DPS',
   Life:'생명력', Mana:'마나', EnergyShield:'에너지 보호막',
@@ -62,6 +70,7 @@ export function renderPobProfile(build, specIndex, language = 'ko') {
     tile.append(element('small','',slot.name),
       element('strong','',slot.title || (slot.text ? slot.name : (language === 'ko' ? '비어 있음' : 'Empty'))),
       element('p','',slot.description));
+    if (slot.raw) tile.append(fullSourceDisclosure(slot.raw,language));
     itemFragment.append(tile);
   }
   if (!equipment.length) itemFragment.append(element('p','pob-profile-empty',
@@ -105,6 +114,7 @@ export function renderPobProfile(build, specIndex, language = 'ko') {
     const summary = summarizePobItem(jewel.text);
     card.append(element('strong','',summary.title || 'Jewel #' + jewel.nodeId),
       element('p','', 'ID ' + jewel.nodeId + '\n' + summary.description));
+    card.append(fullSourceDisclosure(jewel.text,language));
     card.title = jewel.text;
     jewelFragment.append(card);
   }

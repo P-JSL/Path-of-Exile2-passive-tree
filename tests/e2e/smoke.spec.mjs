@@ -70,7 +70,16 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
     <Tree activeSpec="1"><Spec title="W1 W2 integration" treeVersion="0_5" nodes="${socketId},${first},${second}">
       <WeaponSet1 nodes="${first}"/><WeaponSet2 nodes="${second}"/>
       <Sockets><Socket nodeId="${socketId}" itemId="1"/></Sockets>
-    </Spec></Tree><Items><Item id="1">Rarity: Rare\\nIntegration Jewel\\n+12 to Life</Item></Items>
+    </Spec></Tree><Items activeItemSet="1">
+      <Item id="1">Rarity: Rare\\nIntegration Jewel\\n+12 to Life</Item>
+      <Item id="2">Rarity: Rare
+Mobile Helm
+Helm Base
++54 to maximum Life
++18% to Fire Resistance
+Additional source-only line</Item>
+      <ItemSet id="1" title="Gear"><Slot name="Helmet" itemId="2"/></ItemSet>
+    </Items>
     </PathOfBuilding2>`;
 
   // Prevent search results from obscuring the import form (especially on phones).
@@ -79,6 +88,9 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
   await page.locator('#pob-code').fill(xml);
   await page.locator('#pob-import').click();
   await expect(page.locator('#pob-build-stage')).toBeVisible();
+  const originalItem=page.locator('.pob-equipment-tile').filter({hasText:'Mobile Helm'});
+  await originalItem.locator('.pob-source-details summary').click();
+  await expect(originalItem.locator('.pob-source-details pre')).toContainText('Additional source-only line');
   await page.locator('#pob-back-tree').click();
   await expect(page.locator('#weapon-set-controls')).toBeVisible();
 
