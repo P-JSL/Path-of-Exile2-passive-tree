@@ -58,3 +58,12 @@
 .keyword-note-context{font-size:11px;line-height:1.5;color:#a9b8c3;border-top:1px dashed #746346;padding-top:9px;margin:10px 0}
 .keyword-note>a{font-size:11px;color:#e6c28d;text-decoration:underline;text-underline-offset:3px;display:inline-block}
 @media(max-width:850px){.keyword-term{padding:2px 3px;min-height:25px}.keyword-note{padding:13px 12px}.keyword-note-close{min-width:38px;min-height:38px}}
+
+/* Optional explicit budgets preserve old plans until users supply actual earned points. */
+.budget-control{margin-top:13px;padding:13px 11px;border:1px solid #394a59;border-radius:8px;background:#14212e}
+.budget-control>label{display:block;font-size:12px;font-weight:700;color:#d6c7aa;margin-bottom:8px}
+.budget-control>input{box-sizing:border-box;width:100%;height:40px;padding:8px 10px;border:1px solid #516276;border-radius:6px;background:#0b1623;color:#f2e9d5;font:inherit;font-size:14px}
+.budget-control>input:focus-visible{outline:2px solid #e0b878;outline-offset:1px}
+.budget-control .helper{margin:9px 0;font-size:11px}
+.budget-usage{font-variant-numeric:tabular-nums;color:#94d5c6;font-size:12px;font-weight:700;margin:11px 0 0}
+.plan-audit{color:#e8c08a;background:#3b2b21;border-left:3px solid #c99f57;border-radius:5px;padding:10px;font-size:11px;line-height:1.6;margin:10px 0 0;overflow-wrap:anywhere}
