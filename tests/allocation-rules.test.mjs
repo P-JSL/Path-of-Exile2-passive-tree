@@ -58,3 +58,16 @@ test('old plans are reported but never silently modified',()=>{
   assert.ok(findings.some(f=>f.reason==='pointBudget'));
   assert.equal(old.size,6);
 });
+
+test('a saved orphaned passive is reported without changing the stored set', () => {
+  const old = new Set([2,8,11]);
+  const findings = auditAllocations(tree,old,base);
+  assert.equal(findings.find(f=>f.reason==='disconnected')?.nodeIds.includes(11),true);
+  assert.equal(findings.find(f=>f.reason==='disconnected')?.nodeIds.includes(8),false);
+  assert.deepEqual([...old],[2,8,11]);
+});
+test('free special-node allocations can be validated without consuming a point', () => {
+  const result = validateAllocationRoute(tree,new Set([2]),[8],{...base,maxPoints:1});
+  assert.equal(result.ok,true);
+  assert.equal(countUsedPoints(tree,result.allocated),1);
+});
