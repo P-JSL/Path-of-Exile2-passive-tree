@@ -31,6 +31,8 @@ jobs:
           node --check assets/extra-model.js
           node --check assets/attributes.js
           node --check scripts/build-ko-stats.mjs
+          node --check scripts/build-translation-coverage.mjs
+          node --check scripts/translation-coverage.mjs
           node --check scripts/build-keyword-notes.mjs
           node --check scripts/version-assets.mjs
           node --check assets/visual-assets.js
@@ -39,6 +41,8 @@ jobs:
           node --test tests/*.test.mjs
       - name: Build bundled Korean stat translations
         run: node scripts/build-ko-stats.mjs
+      - name: Audit Korean translation coverage against bundled game text
+        run: node scripts/build-translation-coverage.mjs
       - name: Bundle Korean and English skill keyword notes
         run: node scripts/build-keyword-notes.mjs
       - name: Bundle pinned official GGG passive tree artwork
