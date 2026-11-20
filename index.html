@@ -88,6 +88,15 @@
           <div><div id="stage-eyebrow" class="eyebrow">FULL PASSIVE SKILL TREE</div><h1 id="stage-title">패시브 트리</h1><p id="stage-subtitle">노드를 누르면 효과를 볼 수 있습니다.</p></div>
           <div class="stage-tools">
             <button type="button" id="pob-view-toggle" class="stage-tool pob-view-toggle" hidden>PoB 빌드 보기</button>
+            <div id="weapon-set-controls" class="weapon-set-controls" hidden>
+              <label for="pob-weapon-view" data-i18n="pobWeaponView">PoB 무기 세트</label>
+              <select id="pob-weapon-view" aria-label="PoB 무기 세트 보기">
+                <option value="all" data-i18n="pobWeaponAll">전체 빌드 · 편집</option>
+                <option value="1" data-i18n="pobWeaponOne">무기 세트 1 · 보기</option>
+                <option value="2" data-i18n="pobWeaponTwo">무기 세트 2 · 보기</option>
+              </select>
+              <span id="pob-weapon-count"></span>
+            </div>
             <button type="button" id="toggle-filters" class="stage-tool" aria-controls="sidebar" aria-expanded="true" data-i18n="hideFilters">필터 접기</button>
             <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
             <button type="button" id="toggle-details" class="stage-tool" aria-controls="details-panel" aria-expanded="true" data-i18n="hideDetails">정보 접기</button>
