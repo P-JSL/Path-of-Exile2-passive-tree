@@ -1,4 +1,4 @@
-import { localizePobName, localizePobSlot, localizePobMetric, localizePobItemText, localizePobGem, formatPobValue } from './pob-localize.js';
+import { localizePobName, localizePobRareName, localizePobSlot, localizePobMetric, localizePobItemText, localizePobGem, formatPobValue } from './pob-localize.js';
 
 /**
  * A source-backed character overview inspired by dense PoE build dashboards.
@@ -69,11 +69,16 @@ export function renderPobProfile(build, specIndex, language = 'ko', selected = {
       tile.classList.add('slot-' + position);
     tile.title = slot.raw;
     const originalTitle = slot.title || (slot.text ? slot.name : (language === 'ko' ? '비어 있음' : 'Empty'));
-    const localizedTitle = localizePobName(originalTitle,language,dictionary);
+    const rareTitle = slot.rarity === 'rare'
+      ? localizePobRareName(originalTitle,language,dictionary) : null;
+    const localizedTitle = rareTitle?.name || localizePobName(originalTitle,language,dictionary);
     tile.append(element('small','',localizePobSlot(slot.name,language)),
       element('strong','',localizedTitle),
       element('p','',language === 'ko' ? '' : slot.description));
     if (slot.raw) tile.append(fullSourceDisclosure(slot.raw,language,dictionary));
+    if (rareTitle?.approximate)
+      tile.append(element('small','pob-approx-translation',
+        '희귀 이름의 구성어 번역 · 원문: '+originalTitle));
     itemFragment.append(tile);
   }
   if (!equipment.length) itemFragment.append(element('p','pob-profile-empty',
