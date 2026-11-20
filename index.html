@@ -53,6 +53,13 @@
         <section class="control-group plan-controls">
           <div class="control-head"><span><span data-i18n="planPoints">계획 포인트</span></span><button id="clear-plan" class="text-button"><span data-i18n="clear">초기화</span></button></div>
           <div class="points-grid"><div><strong id="normal-points">0</strong><span id="normal-points-label">일반</span></div><div><strong id="ascendancy-points">0</strong><span id="ascendancy-points-label">전직</span></div></div>
+          <div class="budget-control">
+            <label for="point-budget" data-i18n="budgetLabel">현재 트리 포인트 한도</label>
+            <input id="point-budget" type="number" min="0" max="999" step="1" inputmode="numeric" data-i18n-placeholder="budgetUnset" placeholder="미설정">
+            <p class="helper" data-i18n="budgetHint">획득한 포인트 수를 직접 입력하세요. 미설정 시 한도를 강제하지 않습니다.</p>
+            <p id="budget-usage" class="budget-usage" aria-live="polite"></p>
+            <p id="plan-audit" class="plan-audit" role="status" hidden></p>
+          </div>
           <button id="share-plan" class="wide-button"><span data-i18n="share">링크 복사 · 계획 공유</span></button>
           <p class="helper" data-i18n="storageHint">브라우저에 계획을 자동 저장합니다. 실제 게임 배분 규칙은 별도로 확인하세요.</p>
         </section>
