@@ -337,7 +337,11 @@ test('Oracle change overlay clearly distinguishes revealed vs ghost nodes withou
       return original.apply(this,args);
     };
   });
+  // On touch WebKit the settings sheet and scrim intentionally block Canvas
+  // controls. Close it for explicit zoom, then reopen to compare Oracle modes.
+  if(isMobile) await page.locator('#sidebar-close').click();
   await page.locator('#zoom-in').click();
+  if(isMobile) await page.locator('#mobile-settings').click();
   await expect.poll(()=>page.evaluate(()=>window.__oracleOverlayFrames.length)).toBeGreaterThan(0);
   const initially=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
   expect(initially.added).toBeGreaterThan(0);
