@@ -126,7 +126,7 @@ const DIRECT_NAMES = {
 };
 const STAT_TARGETS = {
   'Mana Regeneration Rate':'마나 재생 속도','maximum Energy Shield':'최대 에너지 보호막',
-  'Evasion Rating':'회피', 'Critical Hit Chance':'치명타 확률',
+  'Evasion Rating':'회피', 'Deflection Rating':'튕겨내기 평점', 'Critical Hit Chance':'치명타 확률',
   'Block chance':'막기 확률','Armour':'방어도','Attack Speed':'공격 속도',
   'Critical Damage Bonus':'치명타 피해 보너스','Projectile Damage':'투사체 피해',
   'Accuracy Rating':'정확도','Attack Damage':'공격 피해','Elemental Damage':'원소 피해',
@@ -166,7 +166,15 @@ export function passiveStat(line, language = DEFAULT_LANGUAGE, catalog = {}) {
   match = /^Damage Penetrates (\d+)% (Fire|Cold|Lightning|Chaos) Resistance$/.exec(line);
   if (match) return ({Fire:'화염',Cold:'냉기',Lightning:'번개',Chaos:'카오스'}[match[2]]) + ' 저항 ' + match[1] + '% 관통';
   match = /^Gain Deflection Rating equal to (\d+)% of Evasion Rating$/.exec(line);
-  if (match) return '회피의 ' + match[1] + '%와 동일한 굴절 수치 획득';
+  if (match) return '회피의 ' + match[1] + '%와 동일한 튕겨내기 평점 획득';
+  match = /^Companions deal (\d+)% increased Damage$/.exec(line);
+  if (match) return '동료가 주는 피해 ' + match[1] + '% 증가';
+  match = /^(Minions|Companions) have (\d+)% increased maximum Life$/.exec(line);
+  if (match) return (match[1] === 'Minions' ? '소환수' : '동료') + ' 최대 생명력 ' + match[2] + '% 증가';
+  match = /^(\d+)% of Damage taken Recouped as Life$/.exec(line);
+  if (match) return '받은 피해의 ' + match[1] + '%를 생명력으로 회생';
+  match = /^(\d+)% increased Damage with (One|Two) Handed Weapons$/.exec(line);
+  if (match) return (match[2] === 'One' ? '한손' : '양손') + ' 무기로 주는 피해 ' + match[1] + '% 증가';
   // Exact English source is more trustworthy than an approximate translation.
   return line;
 }
