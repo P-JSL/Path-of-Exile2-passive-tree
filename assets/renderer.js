@@ -1,4 +1,5 @@
 import { getBounds } from './tree-model.js';
+import { iconSpriteKey, nodeFrameKey, drawAtlasFrame, loadVisualAtlases, loadClassArt } from './visual-assets.js';
 
 export class TreeRenderer {
   constructor(canvas, callbacks) {
@@ -15,6 +16,15 @@ export class TreeRenderer {
     this.pointerMap = new Map(); this.pointerStart = null; this.pinchStart = null;
     this.isTouch = window.matchMedia('(pointer:coarse)').matches;
     this.pendingDraw = false;
+    this.art = null;
+    this.classArt = null;
+    this.className = null;
+    this.classStart = null;
+    this.mode = 'passive';
+    this.backgroundCache = new Map();
+    // Rendering works immediately with the existing vector fallback.
+    void loadVisualAtlases().then(art => { this.art = art; this.schedule(); })
+      .catch(error => console.warn('Official tree art unavailable:', error));
     this.attachEvents();
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(canvas.parentElement);
@@ -30,6 +40,9 @@ export class TreeRenderer {
       return a && b && Math.hypot(a.x - b.x, a.y - b.y) <= 3000;
     });
     this.orbitRadii = options.orbitRadii ?? [];
+    this.mode = options.mode || 'passive';
+    this.classStart = options.classStart ?? null;
+    this.loadBackground(options.className);
     this.allocated = options.allocated ?? new Set();
     this.rootIds = new Set(Array.isArray(options.rootId) ? options.rootId : [options.rootId]);
     this.lockedOracle = !!options.lockedOracle;
@@ -37,6 +50,31 @@ export class TreeRenderer {
     this.localizeName = options.localizeName ?? (n => n.name);
     this.searchMatches = options.searchMatches ?? new Set();
     this.fitAll();
+  }
+  loadBackground(className) {
+    if (!className || className === this.className) return;
+    this.className = className;
+    this.classArt = null;
+    if (!this.backgroundCache.has(className)) {
+      this.backgroundCache.set(className, loadClassArt(className)
+        .catch(error => { console.warn('Class artwork unavailable:', error); return null; }));
+    }
+    void this.backgroundCache.get(className).then(art => {
+      if (this.className === className) { this.classArt = art; this.schedule(); }
+    });
+  }
+  drawClassBackground() {
+    if (this.mode !== 'passive' || !this.classArt || !this.classStart) return;
+    const root = this.nodeMap.get(this.classStart);
+    if (!root) return;
+    const center = this.toScreen(root.x, root.y);
+    const size = 2100 * this.zoom;
+    if (size < 22) return;
+    const name = 'class' + this.className + ':Class0';
+    this.ctx.save();
+    this.ctx.globalAlpha = .84;
+    drawAtlasFrame(this.ctx, this.classArt, name, center.x, center.y, size);
+    this.ctx.restore();
   }
   update(options = {}) {
     if (options.allocated) this.allocated = options.allocated;
@@ -109,6 +147,7 @@ export class TreeRenderer {
       for (let y = Math.ceil(top / step) * step; y < bottom; y += step) { let v = this.toScreen(0, y).y; ctx.moveTo(0, v); ctx.lineTo(w, v); }
       ctx.stroke();
     }
+    this.drawClassBackground();
     // Each connection uses actual source and target skill IDs; nonzero orbit edges curve.
     const d = this.zoom;
     ctx.lineWidth = Math.max(.65, Math.min(2.8, .9 + d * 2));
@@ -162,6 +201,15 @@ export class TreeRenderer {
       ctx.strokeStyle = highlighted ? '#f7d78f' : '#96d1f1'; ctx.lineWidth = highlighted ? 2 : 1.2; ctx.stroke();
     }
     ctx.globalAlpha = locked ? .55 : 1;
+    const rendered = this.drawOfficialNode(n, p, allocated);
+    if (rendered) {
+      if (this.zoom >= .2 && (n.category === 'keystone' || n.category === 'start')) {
+        ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e9dbbb';
+        ctx.fillText(this.localizeName(n), p.x, p.y - radius - 15);
+      }
+      ctx.globalAlpha = 1;
+      return;
+    }
     ctx.fillStyle = allocated ? '#54d9b6' : '#111c2a';
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(.8, noteworthy ? 1.8 : .9);
@@ -174,6 +222,22 @@ export class TreeRenderer {
       ctx.font = '11px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e9dbbb'; ctx.fillText(this.localizeName(n), p.x, p.y - radius - 10);
     }
     ctx.globalAlpha = 1;
+  }
+  drawOfficialNode(n, position, allocated) {
+    if (!this.art || !n.icon || n.isOnlyImage || this.zoom < .065) return false;
+    const size = this.zoom * (n.category === 'keystone' ? 240 :
+      n.category === 'notable' ? 174 : n.category === 'socket' ? 138 : 118);
+    if (size < 6) return false;
+    const frame = nodeFrameKey(n, allocated, !allocated && [...(this.rootIds || [])]
+      .some(id => this.nodeMap.get(id) && (this.nodeMap.get(id).connections || []).some(link => Number(link.id) === n.id)));
+    const source = iconSpriteKey(n);
+    const iconExists = !!this.art.skills.frames?.[source];
+    if (!iconExists) return false;
+    const ctx = this.ctx;
+    const w = Math.max(7, Math.min(94, size));
+    drawAtlasFrame(ctx, this.art.skills, source, position.x, position.y, w);
+    if (frame) drawAtlasFrame(ctx, this.art.frame, frame, position.x, position.y, w * 1.42);
+    return true;
   }
   eventPosition(event) { const b = this.canvas.getBoundingClientRect(); return { x: event.clientX - b.left, y: event.clientY - b.top }; }
   attachEvents() {
