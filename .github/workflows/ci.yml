@@ -1,0 +1,26 @@
+name: Validate passive-tree changes
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Check JavaScript modules
+        run: |
+          for file in assets/*.js scripts/*.mjs; do
+            node --check "$file"
+          done
+      - name: Run game-model and UI regression tests
+        run: node --test tests/*.test.mjs
+      - name: Validate bundled game data
+        run: node scripts/validate.mjs
