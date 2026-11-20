@@ -1,0 +1,33 @@
+name: Browser smoke - Chromium and WebKit
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install pinned browser test tooling
+        run: npm install --no-save --no-package-lock @playwright/test@1.65.1
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Exercise live static site in desktop and touch browser engines
+        run: npx playwright test -c playwright.config.mjs
+      - name: Keep screenshot, trace and HTML evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-failures
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
