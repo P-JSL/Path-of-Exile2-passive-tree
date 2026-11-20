@@ -186,6 +186,29 @@ test('compressed URL-safe PoB2 share codes decode in desktop and touch WebKit', 
   await expect(page.locator('#pob-meta')).toContainText('패시브 1개');
   const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('exile-tree-pob2-source-v1') || 'null'));
   expect(stored?.source).toBe(code);
+
+  // The sidebar reset clears imported state, its affected saved allocations,
+  // and stale profile details while keeping the normal planner available.
+  if (isMobile) await page.locator('#mobile-settings').click();
+  const reset=page.locator('#pob-import-reset');
+  await expect(reset).toBeEnabled();
+  page.once('dialog',dialog=>dialog.accept());
+  await reset.click();
+  await expect(reset).toBeDisabled();
+  await expect(page.locator('#pob-build-stage')).toBeHidden();
+  await expect(page.locator('#pob-overview')).toBeHidden();
+  await expect(page.locator('#pob-profile-stat-list')).toBeEmpty();
+  await expect(page.locator('#pob-code')).toBeEmpty();
+  const savedAfter=await page.evaluate(()=>({
+    source:localStorage.getItem('exile-tree-pob2-source-v1'),
+    plans:JSON.parse(localStorage.getItem('exile-tree-plans-v1')||'{}')
+  }));
+  expect(savedAfter.source).toBeNull();
+  expect(savedAfter.plans.allocations?.Druid).toBeUndefined();
+  expect(savedAfter.plans.ascAllocations?.Oracle).toBeUndefined();
+  await page.reload();
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  await expect(page.locator('#pob-overview')).toBeHidden();
   expect(errors).toEqual([]);
 });
 

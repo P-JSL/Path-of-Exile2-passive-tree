@@ -826,6 +826,7 @@ function renderPobCurrentProfile() {
 }
 function renderPobOverview() {
   const panel = $('pob-overview');
+  $('pob-import-reset').disabled = !importedPob || $('pob-import').disabled;
   if (!importedPob || !tree) { panel.hidden = true; pobProfileBuild = null; return; }
   const { build, selectedIndex } = importedPob;
   if (pobProfileBuild !== build) {
@@ -933,6 +934,7 @@ async function importPobFromInput() {
   const button = $('pob-import'), result = $('pob-import-result');
   const source = $('pob-code').value.trim();
   button.disabled = true;
+  $('pob-import-reset').disabled = true;
   result.textContent = '';
   try {
     const data = await importPobCode(source);
@@ -961,6 +963,7 @@ async function importPobFromInput() {
     result.textContent = error.message;
   } finally {
     button.disabled = false;
+    $('pob-import-reset').disabled = !importedPob;
   }
 }
 async function restorePobSource() {
@@ -995,6 +998,13 @@ function discardImportedPobSource() {
   setPobBuildView(false);
   try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
   $('pob-import-result').textContent = '';
+  // Clear stale build details from the DOM, not just their visibility.
+  for (const id of [
+    'pob-meta','pob-warning','pob-summary-lists','pob-spec-select',
+    'pob-profile-name','pob-profile-version','pob-profile-equipment',
+    'pob-profile-stat-list','pob-profile-skill-list','pob-profile-jewel-list',
+    'pob-profile-gear-select','pob-profile-skills-select','pob-jewel-text'
+  ]) $(id).replaceChildren();
   renderPobOverview();
   // Imported socket texts must disappear from the selected node detail.
   showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
@@ -1160,6 +1170,7 @@ function wireUI() {
   });
   $('pob-reset').addEventListener('click', resetImportedBuild);
   $('pob-profile-reset').addEventListener('click', resetImportedBuild);
+  $('pob-import-reset').addEventListener('click', resetImportedBuild);
   $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
   $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });

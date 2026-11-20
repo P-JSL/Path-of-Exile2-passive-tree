@@ -67,6 +67,8 @@
           <label for="pob-code" data-i18n="pobCodeLabel">PoB2 공유 코드 또는 XML</label>
           <textarea id="pob-code" rows="4" spellcheck="false" autocomplete="off" autocapitalize="off" data-i18n-placeholder="pobPlaceholder" placeholder="PoB2 공유 코드를 붙여 넣으세요"></textarea>
           <button id="pob-import" type="button" class="wide-button accent-button" data-i18n="pobImportButton">빌드 불러오기</button>
+          <button id="pob-import-reset" type="button" class="wide-button pob-reset-button" data-i18n="pobResetAllButton" disabled>불러온 데이터 전체 리셋</button>
+          <p class="helper" data-i18n="pobResetScopeHint">불러온 PoB 데이터와 해당 배분을 초기화합니다. 다른 계획은 유지됩니다.</p>
           <p id="pob-import-result" class="pob-import-result" role="status" aria-live="polite"></p>
           <p class="helper" data-i18n="pobImportHint">코드는 브라우저 안에서 분석합니다. 가져오면 현재 직업의 패시브 계획이 교체될 수 있습니다.</p>
         </section>
