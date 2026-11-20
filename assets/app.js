@@ -388,7 +388,7 @@ function wireUI() {
   $('fit-all').addEventListener('click', () => renderer.fitAll());
   $('focus-start').addEventListener('click', focusStart);
   $('share-plan').addEventListener('click', sharePlan);
-  $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt')) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
+  $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
   $('sidebar-toggle').addEventListener('click', () => openOverlay('sidebar'));
   $('sidebar-close').addEventListener('click', closeOverlay);
   $('details-close').addEventListener('click', closeOverlay);
