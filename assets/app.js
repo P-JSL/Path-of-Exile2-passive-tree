@@ -93,6 +93,10 @@ function attributeSelection(id) {
 /** Prefer a verified same-ID bilingual tree entry, preserving unselected original attributes. */
 function localizedStats(n, mode = state.mode) {
   const raw = n?.stats || [];
+  // Machine keys are preserved byte-for-byte; an ID or text-dictionary hit
+  // cannot convert opaque Genesis data into a verified game tooltip.
+  if (n?.statsSource === 'internalKeys') return raw;
+  if (n?.statsSource === 'none') return [];
   const kind = mode === 'ascendancy' ? 'passive' : mode;
   // Do not apply a PoE2DB text translation to opaque RePoE internal stat keys.
   // An ID match alone does not prove identical modifier semantics or version.
