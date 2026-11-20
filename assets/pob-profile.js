@@ -6,7 +6,7 @@ import { localizePobName, localizePobRareName, localizePobSlot, localizePobMetri
  * Every source-derived string uses textContent, never HTML.
  */
 export function summarizePobItem(raw = '') {
-  const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const lines = raw.replace(/\\n/g,'\n').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   const rarity = (/^Rarity:\s*(\S+)/i.exec(lines[0] || '')?.[1] || '').toLowerCase();
   const title = lines.find(s => !/^Rarity:/i.test(s) && !/^Item Level:/i.test(s)) || '';
   const description = lines.filter(s => !/^Rarity:/i.test(s) && s !== title).slice(0, 2).join('\n');
