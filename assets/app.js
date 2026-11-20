@@ -232,6 +232,7 @@ function ruleMessage(outcome) {
     unavailable:'ruleUnavailable',unallocatable:'ruleUnallocatable',
     otherAscendancy:'ruleOtherAscendancy',locked:'ruleLocked',
     prerequisite:'rulePrerequisite',exclusiveChoice:'ruleExclusiveChoice',
+    disconnected:'ruleDisconnected',
     pointBudget:'rulePointBudget'
   }[outcome.reason] || 'prerequisite';
   return t(key, {id:outcome.requiredId,used:outcome.used,max:outcome.max});
