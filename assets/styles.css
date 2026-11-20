@@ -209,3 +209,10 @@
 .weapon-set-controls>span{font-size:10px;color:#9dd8bd;white-space:nowrap}
 @media(max-width:1180px){.weapon-set-controls label,.weapon-set-controls>span{display:none}.weapon-set-controls select{max-width:135px}}
 @media(max-width:850px){.weapon-set-controls{max-width:110px;padding:2px}.weapon-set-controls select{max-width:105px;font-size:10px}.stage-tools{flex-wrap:wrap;justify-content:flex-end}}
+
+/* Rendered only for an explicit ?perf=1 diagnostic session. */
+.perf-hud{position:absolute;z-index:4;right:64px;bottom:13px;pointer-events:none;
+ background:#0a1828ee;border:1px solid #6986a0;border-radius:6px;padding:8px 10px;
+ color:#bcebdc;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;
+ max-width:min(420px,85%);word-wrap:break-word}
+@media(max-width:850px){.perf-hud{right:9px;bottom:45px;font-size:10px}}

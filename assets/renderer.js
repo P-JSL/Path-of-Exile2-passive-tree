@@ -2,6 +2,7 @@ import { getBounds } from './tree-model.js';
 import { clampTreeViewport } from './viewport-limits.js';
 import { ViewportIndex } from './spatial-index.js';
 import { useNormalNodeBatching, normalNodePaint } from './render-quality.js';
+import { percentile95, pushFrameSample } from './perf-diagnostics.js';
 import { iconSpriteKey, nodeFrameKey, drawAtlasFrame, loadVisualAtlases, loadClassArt } from './visual-assets.js';
 
 export class TreeRenderer {
@@ -21,6 +22,19 @@ export class TreeRenderer {
     this.pointerMap = new Map(); this.pointerStart = null; this.pinchStart = null;
     this.isTouch = window.matchMedia('(pointer:coarse)').matches;
     this.pendingDraw = false;
+    this.perfDebug = new URLSearchParams(window.location.search).get('perf') === '1';
+    this.perfDurations = [];
+    this.perfIntervals = [];
+    this.perfLastTimestamp = 0;
+    this.perfLastReport = 0;
+    this.perfHud = null;
+    if (this.perfDebug) {
+      this.perfHud = document.createElement('div');
+      this.perfHud.className = 'perf-hud';
+      this.perfHud.setAttribute('role','status');
+      this.perfHud.textContent = 'Measuring visible canvas redraws…';
+      canvas.parentElement.append(this.perfHud);
+    }
     this.art = null;
     this.classArt = null;
     this.className = null;
@@ -96,6 +110,8 @@ export class TreeRenderer {
     if ('searchMatches' in options) this.searchMatches = options.searchMatches;
     if ('searchActive' in options) this.searchActive = !!options.searchActive;
     if ('previewPath' in options) this.previewPath = options.previewPath;
+    if ('weaponSet1' in options) this.weaponSet1 = options.weaponSet1 ?? new Set();
+    if ('weaponSet2' in options) this.weaponSet2 = options.weaponSet2 ?? new Set();
     if (options.localizeName) this.localizeName = options.localizeName;
     this.schedule();
   }
@@ -150,7 +166,28 @@ export class TreeRenderer {
   schedule() {
     if (this.pendingDraw) return;
     this.pendingDraw = true;
-    requestAnimationFrame(() => { this.pendingDraw = false; this.draw(); });
+    requestAnimationFrame(timestamp => {
+      this.pendingDraw = false;
+      if (!this.perfDebug) { this.draw(); return; }
+      const started = performance.now();
+      this.draw();
+      this.recordFrame(timestamp, performance.now() - started);
+    });
+  }
+  recordFrame(timestamp, drawMs) {
+    pushFrameSample(this.perfDurations, drawMs);
+    const delta = timestamp - this.perfLastTimestamp;
+    if (this.perfLastTimestamp && delta > 0 && delta < 250)
+      pushFrameSample(this.perfIntervals, delta);
+    this.perfLastTimestamp = timestamp;
+    if (timestamp - this.perfLastReport < 1000 || !this.perfHud) return;
+    this.perfLastReport = timestamp;
+    const drawP95 = percentile95(this.perfDurations);
+    const intervalP95 = percentile95(this.perfIntervals);
+    const fps = intervalP95 === null ? '—' : String(Math.round(1000 / intervalP95));
+    this.perfHud.textContent = 'Draw P95 ' + (drawP95 === null ? '—' : drawP95.toFixed(1)) +
+      ' ms · interval P95 ' + (intervalP95 === null ? '—' : intervalP95.toFixed(1)) +
+      ' ms · approx ' + fps + ' FPS';
   }
   draw() {
     const { ctx, width: w, height: h } = this;
