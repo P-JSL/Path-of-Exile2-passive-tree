@@ -152,7 +152,7 @@ export function passiveStat(line, language = DEFAULT_LANGUAGE, catalog = {}) {
   if (language === 'en' || !line) return line || '';
   if (catalog.stats?.[line]) return catalog.stats[line];
   // In-game square-bracket links are display markup, not part of translation keys.
-  const plain = line.replace(/\\[([^\\]|]+)\\|([^\\]]+)\\]/g, '$2');
+  const plain = line.replace(/\[[^|]*\|([^\]]+)\]/g, '$1');
   if (plain !== line && catalog.stats?.[plain]) return catalog.stats[plain];
   let match = /^\+(\d+) to any Attribute$/.exec(line);
   if (match) return '임의의 능력치 +' + match[1];
