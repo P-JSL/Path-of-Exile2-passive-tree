@@ -8,7 +8,7 @@ PoE2의 **실제 패시브 트리 데이터**를 브라우저에서 확인하고
 
 - **웹사이트:** https://p-jsl.github.io/Path-of-Exile2-passive-tree/ (저장소의 GitHub Pages를 활성화한 후)
 - **소스:** https://github.com/P-JSL/Path-of-Exile2-passive-tree
-- 로컬: 번역과 용어 메모까지 확인하려면 `node scripts/build-ko-stats.mjs` 및 `node scripts/build-keyword-notes.mjs`를 실행한 다음 `python3 -m http.server 8000`으로 서버를 시작하고 `http://localhost:8000`으로 접속합니다. (`file://` 실행은 지원하지 않습니다.)
+- 로컬: 번역과 용어 메모까지 확인하려면 `node scripts/build-ko-stats.mjs`, `node scripts/build-keyword-notes.mjs`, `node scripts/bundle-tree-art.mjs`를 실행한 다음 `python3 -m http.server 8000`으로 서버를 시작하고 `http://localhost:8000`으로 접속합니다. (`file://` 실행은 지원하지 않습니다.)
 
 ### 기능
 
@@ -28,13 +28,14 @@ PoE2의 **실제 패시브 트리 데이터**를 브라우저에서 확인하고
 - `data/tree.json`: [Path of Building Community for PoE2](https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2/blob/dev/src/TreeData/0_5/tree.json)의 **0_5** 버전 노드·연결 데이터, GGG [PoE2 공식 패시브 트리 내보내기](https://github.com/grindinggear/poe2-skilltree-export) 기반.
 - `data/atlas.json` 및 `data/genesis.json`: [RePoE PoE2 추출 데이터](https://github.com/repoe-fork/poe2/tree/master/data/passive_skill_trees)의 `Atlas.json` / `BrequelTree.json` 게임 데이터 스냅샷. 전용 adapter로 원본 좌표와 그래프 링크를 렌더링합니다.
 - 패시브 좌표는 그룹 좌표와 공식 orbit 반경·각도 데이터로 계산합니다. 스킬 ID·원본 수치·연결 정보는 유지하고, 노드 이름과 효과의 화면 표시 문구만 검증된 영한 사전 및 동일 ID 대조 결과로 번역합니다.
-- 화면 디자인과 Canvas 구현은 이 저장소의 자체 구현이며 PoE2DB 웹페이지 소스·디자인 에셋을 복제하지 않습니다. GGG의 게임 아이콘 원본은 포함되지 않으며 패시브 외곽 프레임은 자체 제작한 도형입니다.
+- 화면 디자인과 Canvas 구현은 이 저장소의 자체 구현입니다. 배포 시 GGG 공식 내보내기의 원본 WebP 아이콘·프레임·기본 직업 배경을 검증된 커밋에서 내려받아 포함합니다. 게임 원본 권리는 GGG에 있으며 PoE2DB 사이트 코드·UI 에셋은 복사하지 않습니다.
 - 전직 목록에는 데이터에 실제 노드가 있는 전직만 표시합니다. 원본 데이터에 메타데이터만 있는 `Abyssal Lich`는 잘못된 빈 트리를 보여주지 않도록 제외됩니다.
 - **아틀라스·제네시스**는 별도 추출본에서 제공하며, 시각화와 연결형 계획은 지원합니다. 다른 시즌의 모든 특수·과거 트리까지 포함하는 것은 아닙니다.
 - 일부 제네시스 노드는 원본에 사람이 읽는 효과 문구가 없어 원본 내부 스탯 키/수치가 대신 표시됩니다. 출처에 없는 설명을 임의로 만들지 않습니다.
 - 한국어 스킬 용어 메모는 배포 시 PoE2DB 한국어/영어 용어집에서 정적으로 생성하며, 페이지를 탐색하는 동안 외부 서비스에 용어 조회를 요청하지 않습니다. 상세한 출처는 `THIRD_PARTY_NOTICES.md`를 참고하세요.
-- GGG의 실제 DDS 노드 아이콘/배경 아트는 포함하지 않으며 자체 벡터 도형을 사용합니다.
-- 전직/패시브 계획은 설명용이며 실제 게임에 자동 적용되지 않습니다. 무기 세트별 포인트, 전직 전용 선택 제약, 다중 선택 등 모든 게임 내 배분 규칙의 완전한 시뮬레이터는 아닙니다.
+- 원본과 대응하는 일반/주요/핵심 노드 4,545개는 GGG 스프라이트에서 표시할 수 있으며, 원본 이미지 데이터가 없는 경우 자체 벡터 도형으로 안전하게 표시합니다. 모바일 실기기 렌더링과 아틀라스·제네시스 전용 그래픽은 별도 검증이 필요합니다.
+- 전직/패시브 계획은 설명용이며 실제 게임에 자동 적용되지 않습니다. 연결성·게임에 정의된 선택형 노드·해금 조건·무료 노드·사용자가 입력한 포인트 한도를 검사합니다. **무기 세트별 배분, 주얼 반경, 직업별 대체 노드, 전직 보상 자동 계산 등은 아직 미구현**이므로 게임의 모든 제약을 정확히 재현한다고 볼 수 없습니다.
+- 구현 상태와 남은 검증 항목은 [정합화 로드맵](docs/POE2DB_PARITY_ROADMAP.md)을 확인하세요.
 
 ### 검증
 
