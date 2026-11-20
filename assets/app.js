@@ -388,9 +388,10 @@ function renderOracleDifference() {
     edges:oracleDiff.edges.length.toLocaleString(state.language)
   });
   banner.dataset.view = state.showOracle ? 'shown' : 'preview';
-  banner.textContent = t(state.showOracle?'oracleDiffShown':'oracleDiffPreview',{
-    count:oracleDiff.nodes.length.toLocaleString(state.language)
-  });
+  // Compact status chip: the settings panel retains the complete counts.
+  banner.textContent = (state.showOracle ?
+    t('oracleDiffShownLegend') : t('oracleDiffHiddenLegend')) +
+    ' · ' + oracleDiff.nodes.length.toLocaleString(state.language);
   const fragment=document.createDocumentFragment();
   for (const group of oracleDiff.groups) {
     const heading=document.createElement('div');
