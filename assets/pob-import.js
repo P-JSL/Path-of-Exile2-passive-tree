@@ -105,6 +105,9 @@ export function parsePobDocument(doc) {
   });
   const items = child(root,'Items');
   const itemPool = new Map(children(items, 'Item').map(item => [attr(item,'id'), (item.textContent || '').trim()]));
+  for (const spec of specs) {
+    for (const socket of spec.sockets) socket.text = itemPool.get(socket.itemId) || '';
+  }
   const itemSets = children(items, 'ItemSet').map(s => ({
     id:attr(s,'id'),title:attr(s,'title'),
     slots:children(s,'Slot').map(slot => ({
@@ -129,6 +132,7 @@ export function parsePobDocument(doc) {
 }
 
 export function parsePobXml(xml) {
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error('외부 엔티티를 포함한 XML은 가져올 수 없습니다.');
   if (typeof DOMParser === 'undefined') throw new Error('XML 파서를 지원하지 않는 브라우저입니다.');
   return parsePobDocument(new DOMParser().parseFromString(xml,'application/xml'));
 }
