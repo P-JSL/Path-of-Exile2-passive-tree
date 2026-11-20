@@ -1,27 +1,49 @@
-name: Validate Exile Tree
+name: Publish Exile Tree to GitHub Pages
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+# Keep one active publisher and its build artifact together.
 concurrency:
-  group: validate-exile-tree-${{ github.ref }}
-  cancel-in-progress: true
+  group: exile-tree-pages
+  cancel-in-progress: false
+
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - name: Validate bundled tree and web application
+      - name: Validate JavaScript syntax and bundled game data
         run: |
           node --check assets/app.js
           node --check assets/i18n.js
           node --check assets/renderer.js
+          node --check assets/tree-model.js
+          node --check assets/extra-model.js
           node scripts/validate.mjs
           node --test tests/*.test.mjs
+      - uses: actions/configure-pages@v6
+      - name: Upload validated static website
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
