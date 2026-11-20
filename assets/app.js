@@ -24,7 +24,7 @@ async function loadTranslations() {
   const extended = responses[1].status === 'fulfilled' ? responses[1].value : {};
   const generated = responses[2].status === 'fulfilled' ? responses[2].value : {};
   // Existing verified game names win over fallback dictionaries.
-  localeCatalog = { names: { ...(generated.names || {}), ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(generated.stats || {}), ...(base.stats || {}) } };
+  localeCatalog = { names: { ...(generated.names || {}), ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(generated.stats || {}), ...(base.stats || {}) }, nodes: generated.nodes || {} };
   if (responses.every(r => r.status === 'rejected')) console.warn('Korean language files were unavailable.', responses.map(r => r.reason));
   if (tree && renderer) {
     populateClasses(); populateAscendancies();
@@ -51,14 +51,26 @@ const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid',
 let currentNodes = [], currentIds = new Set();
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
-const localName = item => passiveName(typeof item === 'string' ? item : item?.name, state.language, localeCatalog);
+function localName(item, mode = state.mode) {
+  const source = typeof item === 'string' ? item : item?.name;
+  const kind = mode === 'ascendancy' ? 'passive' : mode;
+  const direct = typeof item === 'object' && item !== null ? localeCatalog.nodes?.[kind]?.[item.id]?.name : null;
+  return state.language === 'ko' && direct ? direct : passiveName(source, state.language, localeCatalog);
+}
 const localStat = line => passiveStat(line, state.language, localeCatalog);
 function attributeSelection(id) {
-  if (state.mode !== 'passive') return '';
   return state.attributeChoices[state.className]?.[id] || '';
 }
-function localNodeStat(n, line) {
-  return selectedAttributeStat(line, attributeSelection(n.id), state.language) || localStat(line);
+/** Prefer a verified same-ID bilingual tree entry, preserving unselected original attributes. */
+function localizedStats(n, mode = state.mode) {
+  const raw = n?.stats || [];
+  const kind = mode === 'ascendancy' ? 'passive' : mode;
+  const direct = state.language === 'ko' ? localeCatalog.nodes?.[kind]?.[n.id]?.stats : null;
+  if (direct?.length) return direct.map((line, index) => {
+    const chosen = mode === 'passive' ? selectedAttributeStat(raw[index], attributeSelection(n.id), state.language) : null;
+    return chosen || line;
+  });
+  return raw.map(line => (mode === 'passive' ? selectedAttributeStat(line, attributeSelection(n.id), state.language) : null) || localStat(line));
 }
 function applyLanguageText() {
   document.documentElement.lang = state.language;
@@ -231,13 +243,14 @@ function renderAllocatedList() {
       const node = group.model.nodes.get(id);
       const b = document.createElement('button'); b.type = 'button'; b.className = 'allocated-item';
       if (state.mode === group.mode && state.selectedId === id) b.classList.add('active');
-      const title = document.createElement('strong'); title.className = 'allocated-item-name'; title.textContent = localName(node) || t('noName');
+      const title = document.createElement('strong'); title.className = 'allocated-item-name'; title.textContent = localName(node, group.mode) || t('noName');
       const type = document.createElement('small'); type.className = 'allocated-item-meta';
       type.textContent = t(node.category === 'keystone' ? 'keystonePassive' : node.category === 'notable' ? 'notablePassive' : node.category === 'socket' ? 'socketPassive' : 'normalPassive') + ' · ID ' + id;
       b.append(title, type);
-      if (node.stats?.length) {
+      const displayLines = localizedStats(node, group.mode);
+      if (displayLines.length) {
         const stat = document.createElement('span'); stat.className = 'allocated-item-desc';
-        stat.textContent = node.stats.slice(0, 2).map(line => group.mode === 'passive' ? (selectedAttributeStat(line, state.attributeChoices[state.className]?.[id], state.language) || localStat(line)) : localStat(line)).join('\n'); b.append(stat);
+        stat.textContent = displayLines.slice(0, 2).join('\n'); b.append(stat);
       }
       if (group.mode === 'passive' && isAnyAttributeNode(node) && !state.attributeChoices[state.className]?.[id]) {
         const missing = document.createElement('span'); missing.className = 'allocated-item-meta missing-attribute'; missing.textContent = t('attributeUnset'); b.append(missing);
@@ -275,14 +288,14 @@ function showDetail(n) {
   $('details-content').hidden = !n;
   if (!n) return;
   const types = { normal:'normalPassive', notable:'notablePassive', keystone:'keystonePassive', socket:'socketPassive', start:'startPassive' };
-  $('detail-type').textContent = isExtraMode() ? (n.subtree || t(state.mode === 'atlas' ? 'tabAtlas':'tabGenesis'))
+  $('detail-type').textContent = isExtraMode() ? (localName(n.subtree) || t(state.mode === 'atlas' ? 'tabAtlas':'tabGenesis'))
     : n.hiddenOracle ? t('oracleDetail') : n.ascendancyName ? localName(n.ascendancyName)+' · '+t('ascPoints') : t(types[n.category] || 'normalPassive');
   $('detail-name').textContent = localName(n) || t('noName');
   $('detail-stats').replaceChildren();
-  const lines = n.stats.length ? n.stats : [t('noStats')];
-  for (const line of lines) {
+  const translatedLines = localizedStats(n);
+  for (const line of translatedLines.length ? translatedLines : [t('noStats')]) {
     const p = document.createElement('p'); p.className = 'stat-line';
-    p.textContent = n.stats.length ? localNodeStat(n, line) : line;
+    p.textContent = line;
     $('detail-stats').append(p);
   }
   const control = $('attribute-control');
@@ -328,7 +341,7 @@ function refreshSearch(show = true) {
   const results = $('search-results'); results.replaceChildren();
   const matches = new Set();
   if (q) for (const n of currentNodes) {
-    if (n.name.toLocaleLowerCase().includes(q) || localName(n).toLocaleLowerCase().includes(q) || n.stats.some(s => s.toLocaleLowerCase().includes(q) || localStat(s).toLocaleLowerCase().includes(q))) matches.add(n.id);
+    if (n.name.toLocaleLowerCase().includes(q) || localName(n).toLocaleLowerCase().includes(q) || n.stats.some(s => s.toLocaleLowerCase().includes(q)) || localizedStats(n).some(s => s.toLocaleLowerCase().includes(q))) matches.add(n.id);
   }
   if (q && show) {
     for (const n of currentNodes.filter(n => matches.has(n.id)).slice(0, 30)) {
