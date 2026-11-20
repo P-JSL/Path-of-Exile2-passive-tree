@@ -324,6 +324,12 @@ function scene() {
     : t('sceneDefault');
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
   renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className) });
+  // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
+  // Keep the entire world rendered and the existing Fit All control available.
+  if (state.mode === 'passive' || state.mode === 'ascendancy') {
+    const start = model.nodes.get(rootIds()[0]);
+    if (start) renderer.focus(start.x, start.y, state.mode === 'ascendancy' ? .27 : .19);
+  }
   $('connection-count').textContent = t('edgeCount',{count:renderer.edges.length.toLocaleString(state.language)});
   renderAllocatedList(); refreshSearch(false); persist();
 }
