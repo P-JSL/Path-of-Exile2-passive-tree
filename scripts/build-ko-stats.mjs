@@ -201,3 +201,4 @@ for (const [mode, nodes] of [['passive', Object.values(all.nodes)], ['atlas', Ob
   console.log('[' + mode + '] Korean names ' + coverage(names.size, covered.length) + '; unmatched: ' + missing.slice(0, 15).join(' | '));
 }
 console.log('Unmatched stat samples: ' + [...srcLines].filter(s => !stats[s] && !locale.stats?.[s]).slice(0, 12).join(' | '));
+console.log('REMAINING_UNTRANSLATED_STATS ' + JSON.stringify([...srcLines].filter(text => !stats[text] && !locale.stats?.[text])));
