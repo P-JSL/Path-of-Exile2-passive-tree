@@ -60,3 +60,18 @@ test('refund prunes disconnected branches but preserves other allocated paths', 
   assert.deepEqual([...result.result].sort(), [2, 5]);
   assert.equal(result.removed, 1);
 });
+
+test('disconnected imported allocations cannot serve as new pathfinding roots', () => {
+  const model = buildTree({
+    ...base,
+    groups: { ...base.groups, 6: { x: 500, y: 0 }, 7: { x: 600, y: 0 } },
+    nodes: {
+      ...base.nodes,
+      11: { skill: 11, name: 'Orphan', group: 6, orbit: 0, orbitIndex: 0, stats: [], connections: [{id:12}] },
+      12: { skill: 12, name: 'Orphan target', group: 7, orbit: 0, orbitIndex: 0, stats: [], connections: [{id:11}] }
+    }
+  });
+  const ids = new Set(model.nodes.keys());
+  assert.equal(shortestAllocationPath(model, 12, ids, new Set([11]), 1), null);
+  assert.deepEqual(shortestAllocationPath(model, 3, ids, new Set([2,11]), 1), [3]);
+});
