@@ -113,7 +113,10 @@ Another Base
   await skillSelect.selectOption('1');
   await expect(page.locator('#pob-profile-skill-list')).toContainText('전기불꽃');
   await expect(page.locator('#pob-profile-stat-list')).toContainText('평균 적중 피해');
-  await expect(page.locator('#pob-profile-stat-list')).toContainText('5,025,251.53575');
+  await expect(page.locator('#pob-profile-stat-list')).toContainText('5,025,251.54');
+  const originalStat=page.locator('.pob-stat-row').filter({hasText:'평균 적중 피해'});
+  await originalStat.locator('.pob-stat-raw summary').click();
+  await expect(originalStat.locator('.pob-stat-raw code')).toHaveText('5025251.53575');
   await expect(page.locator('#pob-profile-stat-list')).toContainText('최대 인내 충전 수');
   const originalItem=page.locator('.pob-equipment-tile').filter({hasText:'Mobile Helm'});
   const detail=originalItem.locator('.pob-source-details');
