@@ -360,6 +360,16 @@ test('Oracle change overlay clearly distinguishes revealed vs ghost nodes withou
   const initially=await page.evaluate(()=>window.__oracleOverlayFrames.at(-1));
   expect(initially.added).toBeGreaterThan(0);
   expect(initially.shown).toBe(true);
+  const proportional=await page.evaluate(async()=>{
+    const {oracleOverlayStyle,normalNodeRadius}=await import('/assets/render-quality.js');
+    return [.012,.04,.10,.19,.28,.5].map(zoom=>({
+      zoom,overlay:oracleOverlayStyle(zoom),normal:normalNodeRadius(zoom)
+    }));
+  });
+  for(const point of proportional) {
+    expect(point.overlay.radius).toBe(point.normal);
+    if(point.zoom<.28) expect(point.overlay.doubleRing).toBe(false);
+  }
   await page.locator('#oracle-toggle').uncheck();
   await expect(page.locator('#oracle-diff-banner')).toHaveAttribute('data-view','preview');
   await expect.poll(()=>page.evaluate(()=>window.__oracleOverlayFrames.at(-1)?.shown)).toBe(false);
