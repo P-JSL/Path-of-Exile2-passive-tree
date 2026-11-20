@@ -22,7 +22,12 @@ assert.ok(Object.keys(extra.atlas.passives).length >= 500, 'Atlas data is incomp
 assert.ok(Object.keys(extra.genesis.passives).length >= 200, 'Genesis tree data is incomplete');
 for(const [name,model] of Object.entries(extra)){ assert.ok(Object.keys(model.groups).length > 100, name + ': missing groups'); assert.ok(model.roots.length > 0,name + ': missing roots'); }
 
-for (const file of ['index.html', 'assets/app.js', 'assets/tree-model.js', 'assets/renderer.js', 'assets/styles.css', 'assets/extra-model.js']) {
+for (const file of ['index.html', 'assets/app.js', 'assets/tree-model.js', 'assets/renderer.js', 'assets/styles.css', 'assets/extra-model.js', 'assets/i18n.js', 'data/ko.json']) {
   assert.ok(existsSync(join(base, file)), `Required site file is missing: ${file}`);
 }
 console.log(`PASS: ${nodes.length} skills, ${ascendancies.size} ascendancies, ${raw.classes.length} classes, ${nodes.filter(n => n.unlockConstraint?.ascendancy === 'Oracle').length} Oracle-only skills, ${Object.keys(extra.atlas.passives).length} Atlas, ${Object.keys(extra.genesis.passives).length} Genesis.`);
+
+const matchedGroupIds = nodes.filter(n => raw.groups[Number(n.group) - 1]?.nodes?.includes(Number(n.skill)));
+assert.equal(matchedGroupIds.length, nodes.length, 'GGG group references must be resolved as one-based IDs');
+const locale = JSON.parse(readFileSync(join(base, 'data/ko.json'), 'utf8'));
+assert.ok(Object.keys(locale.names).length >= 900, 'Korean name dictionary is unexpectedly incomplete');

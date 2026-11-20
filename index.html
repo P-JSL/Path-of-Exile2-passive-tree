@@ -14,7 +14,7 @@
   <div id="app">
     <header class="site-header">
       <div class="brand"><div class="brand-emblem">✥</div><div><span class="brand-overline">PATH OF EXILE 2 · TREE PLANNER</span><strong>EXILE <span>TREE</span></strong></div></div>
-      <nav class="tree-tabs" aria-label="트리 유형">
+      <nav class="tree-tabs" aria-label="트리 유형" data-i18n-aria="tabNav">
         <button id="tab-passive" class="tree-tab active" data-mode="passive" aria-pressed="true"><span data-i18n="tabPassive">일반 패시브</span></button>
         <button id="tab-ascendancy" class="tree-tab" data-mode="ascendancy" aria-pressed="false"><span data-i18n="tabAscendancy">전직 트리</span></button>
         <button id="tab-atlas" class="tree-tab" data-mode="atlas" aria-pressed="false"><span data-i18n="tabAtlas">아틀라스</span></button>
@@ -56,10 +56,10 @@
           <button id="share-plan" class="wide-button"><span data-i18n="share">링크 복사 · 계획 공유</span></button>
           <p class="helper" data-i18n="storageHint">브라우저에 계획을 자동 저장합니다. 실제 게임 배분 규칙은 별도로 확인하세요.</p>
         </section>
-        <div class="source-note"><strong><span data-i18n="dataBased">실제 데이터 기반</span></strong><span id="data-summary" data-i18n="dataLoading">데이터를 불러오고 있습니다.</span><a href="https://github.com/grindinggear/poe2-skilltree-export" target="_blank" rel="noopener noreferrer">GGG 패시브 원본 ↗</a><a href="https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2" target="_blank" rel="noopener noreferrer">Path of Building 추출 데이터 ↗</a></div>
+        <div class="source-note"><strong><span data-i18n="dataBased">실제 데이터 기반</span></strong><span id="data-summary" data-i18n="dataLoading">데이터를 불러오고 있습니다.</span><a href="https://github.com/grindinggear/poe2-skilltree-export" target="_blank" rel="noopener noreferrer"><span data-i18n="origin">GGG 패시브 원본</span> ↗</a><a href="https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2" target="_blank" rel="noopener noreferrer"><span data-i18n="pob">Path of Building 추출 데이터</span> ↗</a></div>
       </aside>
 
-      <main class="stage" aria-label="패시브 트리 지도">
+      <main class="stage" aria-label="패시브 트리 지도" data-i18n-aria="mainAria">
         <div class="stage-header">
           <div><div id="stage-eyebrow" class="eyebrow">FULL PASSIVE SKILL TREE</div><h1 id="stage-title">패시브 트리</h1><p id="stage-subtitle">노드를 누르면 효과를 볼 수 있습니다.</p></div>
           <div class="stage-chips"><span id="scene-count">—</span><span id="connection-count">—</span></div>
@@ -72,12 +72,12 @@
           <div class="map-controls"><button id="zoom-in" aria-label="zoomIn" data-i18n-aria="zoomIn" title="확대">+</button><button id="zoom-out" aria-label="zoomOut" data-i18n-aria="zoomOut" title="축소">−</button><button id="fit-all" aria-label="fit" data-i18n-aria="fit" title="전체 보기">⛶</button><button id="focus-start" aria-label="focus" data-i18n-aria="focus" title="시작 지점">◎</button></div>
           <div class="canvas-legend"><span><i class="dot-base"></i><span data-i18n="legendNormal">기본</span></span><span><i class="dot-notable"></i><span data-i18n="legendNotable">주요</span></span><span><i class="dot-allocated"></i><span data-i18n="legendAllocated">배분</span></span><span id="oracle-legend" hidden><i class="dot-oracle"></i><span data-i18n="legendOracle">오라클 추가</span></span></div>
         </div>
-        <div class="mobile-bottom-bar"><button id="mobile-search">⌕ <span><span data-i18n="mobileSearch">노드 검색</span></span></button><button id="mobile-details">◈ <span><span data-i18n="mobileDetails">노드 정보</span></span></button><button id="mobile-settings">☰ <span>설정</span></button></div>
+        <div class="mobile-bottom-bar"><button id="mobile-search">⌕ <span><span data-i18n="mobileSearch">노드 검색</span></span></button><button id="mobile-details">◈ <span><span data-i18n="mobileDetails">노드 정보</span></span></button><button id="mobile-settings">☰ <span data-i18n="mobileSettings">설정</span></button></div>
       </main>
 
       <aside id="details-panel" class="details-panel">
         <div class="details-title"><span data-i18n="detailHeader">패시브 정보</span><button id="details-close" class="icon-button mobile-only" aria-label="detailClose" data-i18n-aria="detailClose">✕</button></div>
-        <div id="details-placeholder" class="details-placeholder"><div class="placeholder-glyph">◇</div><strong><span data-i18n="detailEmpty">패시브를 선택하세요</span></strong><p>맵의 노드를 누르면 정확한 패시브 효과, 분류, 요구 연결 경로를 확인할 수 있습니다.</p></div>
+        <div id="details-placeholder" class="details-placeholder"><div class="placeholder-glyph">◇</div><strong><span data-i18n="detailEmpty">패시브를 선택하세요</span></strong><p data-i18n="detailHelp">맵의 노드를 누르면 효과, 종류 및 연결 경로를 확인할 수 있습니다.</p></div>
         <div id="details-content" hidden><span id="detail-type" class="detail-type"><span data-i18n="tabPassive">일반 패시브</span></span><h2 id="detail-name"></h2><div id="detail-stats" class="detail-stats"></div><div id="detail-notice" class="detail-notice" hidden></div><div class="detail-meta"><span><span data-i18n="passiveId">패시브 ID</span></span><code id="detail-id"></code></div><button id="allocate-button" class="wide-button accent-button">경로를 따라 배분</button><p id="allocation-message" class="helper"></p></div>
         <div class="details-footer"><p data-i18n="detailFooter">이 페이지는 게임 내 배분과 무관한 계획 도구입니다.</p></div>
       </aside>

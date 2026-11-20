@@ -17,6 +17,8 @@ const localName = item => passiveName(typeof item === 'string' ? item : item?.na
 const localStat = line => passiveStat(line, state.language, localeCatalog);
 function applyLanguageText() {
   document.documentElement.lang = state.language;
+  document.title = t('docTitle');
+  if (tree) $('version-label').textContent = t('version');
   $('language-select').value = state.language;
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
   for (const node of document.querySelectorAll('[data-i18n-placeholder]')) node.placeholder = t(node.dataset.i18nPlaceholder);
@@ -317,7 +319,7 @@ async function loadTree() {
     }
     if (!renderer) renderer = new TreeRenderer($('tree-canvas'), { onSelect: onNodeSelected });
     populateClasses(); scene();
-    $('version-label').textContent = 'PoE2 0.5 · 공식 내보내기 기반';
+    $('version-label').textContent = t('version');
     $('data-summary').textContent = t('summary',{nodes:tree.nodes.size.toLocaleString(state.language),asc:tree.ascendancies.length,atlas:extraTrees.atlas.nodes.size.toLocaleString(state.language),genesis:extraTrees.genesis.nodes.size.toLocaleString(state.language)});
     $('loading-overlay').hidden = true;
   } catch (err) {

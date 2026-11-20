@@ -3,7 +3,7 @@ export const DEFAULT_LANGUAGE = 'ko';
 export const SUPPORTED_LANGUAGES = ['ko', 'en'];
 const STRINGS = {
   ko: {
-    settings:'빌드 설정',language:'언어',languageHint:'한국어가 기본이며, 번역되지 않은 게임 데이터는 원문으로 표시합니다.',
+    settings:'빌드 설정',tabNav:'트리 유형',mainAria:'패시브 트리 지도',version:'PoE2 0.5 · 공식 내보내기 기반',docTitle:'Exile Tree | PoE2 패시브 트리',language:'언어',languageHint:'한국어가 기본이며, 번역되지 않은 게임 데이터는 원문으로 표시합니다.',
     tabPassive:'일반 패시브',tabAscendancy:'전직 트리',tabAtlas:'아틀라스',tabGenesis:'제네시스',
     class:'기본 직업',ascendancy:'전직 직업',search:'패시브 검색',searchPlaceholder:'노드 이름 또는 효과 검색',
     searchHint:'선택한 트리에서 노드 이름과 효과를 검색합니다.',searchClear:'검색어 지우기',
@@ -53,7 +53,7 @@ const STRINGS = {
     noAsc:'선택 없음'
   },
   en: {
-    settings:'BUILD CONFIGURATION',language:'Language',languageHint:'Korean is the default. Missing game terms keep their original English text.',
+    settings:'BUILD CONFIGURATION',tabNav:'Tree views',mainAria:'Passive skill tree map',version:'PoE2 0.5 · GGG export',docTitle:'Exile Tree | PoE2 Passive Tree',language:'Language',languageHint:'Korean is the default. Missing game terms keep their original English text.',
     tabPassive:'Passive tree',tabAscendancy:'Ascendancy tree',tabAtlas:'Atlas',tabGenesis:'Genesis',
     class:'Base class',ascendancy:'Ascendancy',search:'Search passives',searchPlaceholder:'Search names or effects',
     searchHint:'Search node names and effects in this tree.',searchClear:'Clear search',
