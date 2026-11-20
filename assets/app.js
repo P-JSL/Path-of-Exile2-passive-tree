@@ -969,6 +969,9 @@ function wireUI() {
     try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
     $('pob-import-result').textContent = '';
     renderPobOverview();
+    // The original source may have supplied the selected socket's jewel text.
+    // Refresh the still-selected node so deleted PoB data is not left visible.
+    showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
   });
   $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
   $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
