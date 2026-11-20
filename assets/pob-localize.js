@@ -185,8 +185,8 @@ export function localizePobItemLine(value,language='ko',dict={}) {
   let m=/^Rarity:\s*(\w+)/i.exec(line);
   if(m)return '등급: '+(rarities[m[1].toUpperCase()]||m[1]);
   m=/^([^:]+):\s*(.*)$/.exec(line);
-  if(m && (fields[m[1]] || exact(dict.ui,m[1])))return
-    (fields[m[1]]||dict.ui[m[1]])+': '+m[2];
+  if(m && (fields[m[1]] || exact(dict.ui,m[1])))
+    return (fields[m[1]]||dict.ui[m[1]])+': '+m[2];
   if(/^(Corrupted|Mirrored|Unidentified)$/i.test(line))
     return fields[line]||line;
   const exactName=localizePobName(line,'ko',dict);
