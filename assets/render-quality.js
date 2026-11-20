@@ -14,3 +14,24 @@ export function normalNodePaint(node, allocated, searchDimmed, oracleLocked) {
     alpha: oracleLocked && node.hiddenOracle ? 0.55 : searchDimmed ? 0.3 : 1
   };
 }
+
+
+/**
+ * Screen-space radius of a standard passive. Oracle comparison markers must
+ * use the same radius, including at full-tree zoom, or hundreds of rings
+ * overwhelm the actual node topology on mobile.
+ */
+export function normalNodeRadius(zoom) {
+  return Math.max(1.2, Math.min(9, zoom * 21));
+}
+
+/** Scale emphasis with the tree rather than imposing fixed 7–17 px halos. */
+export function oracleOverlayStyle(zoom) {
+  const radius = normalNodeRadius(zoom);
+  return {
+    radius,
+    lineWidth: Math.max(.8, Math.min(1.6, .75 + zoom * 2)),
+    connectorWidth: Math.max(.65, Math.min(2.8, .9 + zoom * 2)),
+    doubleRing: zoom >= .28 && radius >= 5
+  };
+}
