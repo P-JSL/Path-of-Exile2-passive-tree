@@ -133,3 +133,45 @@ test('compressed URL-safe PoB2 share codes decode in desktop and touch WebKit', 
   expect(stored?.source).toBe(code);
   expect(errors).toEqual([]);
 });
+
+/** Downsample the actual Canvas pixels, not the DOM overlay or toolbar. */
+async function countVisiblePassivePixels(canvas) {
+  return canvas.evaluate(source=>{
+    const sample=document.createElement('canvas');
+    sample.width=320;sample.height=200;
+    const ctx=sample.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(source,0,0,sample.width,sample.height);
+    const image=ctx.getImageData(0,0,sample.width,sample.height).data;
+    let visible=0;
+    for(let offset=0;offset<image.length;offset+=4) {
+      // The empty background is approximately rgb(12,20,32); use a large
+      // margin to ignore the subtle backdrop grid and tiny color variance.
+      if(image[offset]>85 || image[offset+1]>95 || image[offset+2]>120) visible++;
+    }
+    return visible;
+  });
+}
+
+test('passive Canvas retains visible tree pixels during repeated drag/zoom/fit gestures', async ({page})=>{
+  const runtimeErrors=[];
+  page.on('pageerror',error=>runtimeErrors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  const canvas=page.locator('#tree-canvas');
+  await expect.poll(()=>countVisiblePassivePixels(canvas),{timeout:10000}).toBeGreaterThan(40);
+  for(let i=0;i<4;i++) {
+    await page.locator('#zoom-in').click();
+    await page.locator('#zoom-out').click();
+    const box=await canvas.boundingBox();
+    const x=box.x+box.width*.52,y=box.y+box.height*.51;
+    await page.mouse.move(x,y);
+    await page.mouse.down();
+    await page.mouse.move(x-(i%2?75:140),y+(i%2?75:-65),{steps:6});
+    await page.mouse.up();
+  }
+  await page.locator('#fit-all').click();
+  await expect.poll(()=>countVisiblePassivePixels(canvas),{timeout:10000}).toBeGreaterThan(40);
+  await page.locator('#focus-start').click();
+  await expect.poll(()=>countVisiblePassivePixels(canvas),{timeout:10000}).toBeGreaterThan(40);
+  expect(runtimeErrors).toEqual([]);
+});
