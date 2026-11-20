@@ -42,6 +42,7 @@ async function loadTranslations() {
   const generated = responses[2].status === 'fulfilled' ? responses[2].value : {};
   // Existing verified game names win over fallback dictionaries.
   localeCatalog = { names: { ...(generated.names || {}), ...(extended.names || {}), ...(base.names || {}) }, stats: { ...(extended.names || {}), ...(generated.stats || {}), ...(base.stats || {}) }, nodes: generated.nodes || {} };
+  searchCache = null;
   if (responses.every(r => r.status === 'rejected')) console.warn('Korean language files were unavailable.', responses.map(r => r.reason));
   if (tree && renderer) {
     populateClasses(); populateAscendancies();
@@ -66,6 +67,7 @@ function updateDataSummary() {
 }
 const state = { language: DEFAULT_LANGUAGE, mode: 'passive', className: 'Druid', ascendancy: 'Oracle', showOracle: true, selectedId: null, search: '', allocations: {}, ascAllocations: {}, extraAllocations: {}, attributeChoices: {}, budgets: {} };
 let currentNodes = [], currentIds = new Set();
+let searchCache = null;
 let toastTimeout;
 const t = (key, values = {}) => tr(key, state.language, values);
 function localName(item, mode = state.mode) {
@@ -155,6 +157,11 @@ function applyLanguageText() {
   if (tree) $('version-label').textContent = t('version');
   $('language-select').value = state.language;
   for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
+  const layout = document.querySelector('.workspace');
+  if (layout) {
+    $('toggle-filters').textContent = t(layout.classList.contains('filters-collapsed') ? 'showFilters' : 'hideFilters');
+    $('toggle-details').textContent = t(layout.classList.contains('details-collapsed') ? 'showDetails' : 'hideDetails');
+  }
   for (const node of document.querySelectorAll('[data-i18n-placeholder]')) node.placeholder = t(node.dataset.i18nPlaceholder);
   for (const node of document.querySelectorAll('[data-i18n-aria]')) node.setAttribute('aria-label', t(node.dataset.i18nAria));
 }
@@ -314,6 +321,7 @@ function scene() {
   const model = activeTree();
   currentNodes = isExtraMode() ? [...model.nodes.values()] : visibleNodes(tree, state.mode, state.ascendancy, state.showOracle);
   currentIds = new Set(currentNodes.map(n => n.id));
+  searchCache = null;
   if (state.selectedId && !currentIds.has(state.selectedId)) state.selectedId = null;
   applyLanguageText(); populateAscendancies(); updateHeader();
   const count = currentNodes.length;
@@ -466,8 +474,14 @@ function refreshSearch(show = true) {
   const q = state.search.trim().toLocaleLowerCase();
   const results = $('search-results'); results.replaceChildren();
   const matches = new Set();
-  if (q) for (const n of currentNodes) {
-    if (n.name.toLocaleLowerCase().includes(q) || localName(n).toLocaleLowerCase().includes(q) || n.stats.some(s => s.toLocaleLowerCase().includes(q)) || localizedStats(n).some(s => s.toLocaleLowerCase().includes(q))) matches.add(n.id);
+  if (q) {
+    // Build the normalized search document once per scene/language instead of
+    // translating thousands of passives on every individual keystroke.
+    if (!searchCache) searchCache = currentNodes.map(n => ({
+      id:n.id,
+      text:[n.name, localName(n), ...n.stats, ...localizedStats(n)].join(' ').toLocaleLowerCase()
+    }));
+    for (const entry of searchCache) if (entry.text.includes(q)) matches.add(entry.id);
   }
   if (q && show) {
     for (const n of currentNodes.filter(n => matches.has(n.id)).slice(0, 30)) {
@@ -536,10 +550,21 @@ function openOverlay(which) {
   $('scrim').hidden = !(sidebar || details);
 }
 function closeOverlay() { openOverlay('none'); }
+function toggleDesktopPanel(side) {
+  const workspace = document.querySelector('.workspace');
+  const filters = side === 'filters';
+  const className = filters ? 'filters-collapsed' : 'details-collapsed';
+  const collapsed = workspace.classList.toggle(className);
+  const button = $(filters ? 'toggle-filters' : 'toggle-details');
+  button.textContent = t(filters ? (collapsed ? 'showFilters' : 'hideFilters') :
+    (collapsed ? 'showDetails' : 'hideDetails'));
+  button.setAttribute('aria-expanded', String(!collapsed));
+  // ResizeObserver will recalculate the canvas backing store exactly once.
+}
 function wireUI() {
   $('language-select').addEventListener('change', e => {
     if (!SUPPORTED_LANGUAGES.includes(e.target.value)) return;
-    state.language = e.target.value; applyLanguageText();
+    state.language = e.target.value; searchCache = null; applyLanguageText();
     if (tree && renderer) {
       populateClasses(); updateHeader();
       $('scene-count').textContent = t('nodeCount',{count:currentNodes.length.toLocaleString(state.language)});
@@ -577,13 +602,15 @@ function wireUI() {
     state.attributeChoices[state.className] ||= {};
     if (choice) state.attributeChoices[state.className][id] = choice;
     else delete state.attributeChoices[state.className][id];
-    persist(); showDetail(node); renderAllocatedList();
+    searchCache = null; persist(); showDetail(node); renderAllocatedList();
   });
   $('zoom-in').addEventListener('click', () => renderer.zoomBy(1.5));
   $('zoom-out').addEventListener('click', () => renderer.zoomBy(1 / 1.5));
   $('fit-all').addEventListener('click', () => renderer.fitAll());
   $('focus-start').addEventListener('click', focusStart);
   $('share-plan').addEventListener('click', sharePlan);
+  $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
+  $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
   $('sidebar-toggle').addEventListener('click', () => openOverlay('sidebar'));
   $('sidebar-close').addEventListener('click', closeOverlay);
