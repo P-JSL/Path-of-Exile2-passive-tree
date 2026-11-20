@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { deflateSync } from 'node:zlib';
 
 test('game tree loads, highlights indexed search results and opens passives', async ({page, isMobile}) => {
   const runtimeErrors = [];
@@ -101,5 +102,34 @@ test('PoB2 import preserves shared/W1/W2 passives and reveals source jewel text'
   await selector.selectOption('1');
   await expect(page.locator('#allocate-button')).toBeDisabled();
   await selector.selectOption('all');
+  expect(errors).toEqual([]);
+});
+
+test('compressed URL-safe PoB2 share codes decode in desktop and touch WebKit', async ({page, isMobile}) => {
+  const errors=[];
+  page.on('pageerror', error=>errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  if (isMobile) await page.locator('#mobile-search').click();
+  const search=page.locator('#search-input');
+  await search.fill('fire');
+  const result=page.locator('.result-item').first();
+  await expect(result).toBeVisible();
+  const id=Number(await result.getAttribute('data-node-id'));
+  expect(Number.isSafeInteger(id)).toBe(true);
+  await page.locator('#search-clear').click();
+  await page.locator('.side-fold').filter({has:page.locator('#pob-code')}).locator('summary').click();
+
+  const xml=`<PathOfBuilding2><Build className="Druid" ascendClassName="Oracle" level="60"/>
+    <Tree activeSpec="1"><Spec nodes="${id}" treeVersion="0_5" title="Compressed import"/></Tree>
+    </PathOfBuilding2>`;
+  const code=deflateSync(Buffer.from(xml,'utf8')).toString('base64')
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  await page.locator('#pob-code').fill(code);
+  await page.locator('#pob-import').click();
+  await expect(page.locator('#pob-build-stage')).toBeVisible();
+  await expect(page.locator('#pob-meta')).toContainText('Nodes 1');
+  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('exile-tree-pob2-source-v1') || 'null'));
+  expect(stored?.source).toBe(code);
   expect(errors).toEqual([]);
 });
