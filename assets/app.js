@@ -3,7 +3,7 @@ import { TreeRenderer } from './renderer.js';
 import { buildExtraTree } from './extra-model.js';
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, tr, passiveName, passiveStat } from './i18n.js';
 import { ATTRIBUTES, isAnyAttributeNode, selectedAttributeStat, validAttributeChoices, encodeAttributeChoices, decodeAttributeChoices } from './attributes.js';
-import { parseSkillKeywords, verifiedSkillMarkup, builtInKeywordDescription } from './skill-notes.js';
+import { parseSkillKeywords, verifiedSkillMarkup, lookupKeyword, builtInKeywordDescription } from './skill-notes.js';
 
 const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
@@ -12,6 +12,19 @@ const KEY = 'exile-tree-plans-v1';
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
+let glossaryPromise = null;
+function loadKeywordGlossary() {
+  if (!glossaryPromise) {
+    // Version the separately generated dictionary alongside the deployed app.
+    const revision = new URL(import.meta.url).searchParams.get('v');
+    const path = './data/keyword-notes.json' + (revision ? '?v=' + encodeURIComponent(revision) : '');
+    glossaryPromise = fetchJSON(path).catch(error => {
+      console.warn('Optional keyword glossary unavailable:', error);
+      return null;
+    });
+  }
+  return glossaryPromise;
+}
 const localeDataFiles = ['./data/ko.json', './data/ko-passives.json', './data/ko-stats.json'];
 async function fetchJSON(path) {
   // Respect browser HTTP caching: no-cache revalidated multi-megabyte trees on every visit.
@@ -97,6 +110,18 @@ function openKeywordNote(key, label, statLine, trigger) {
   $('keyword-note').hidden = false;
   trigger.setAttribute('aria-expanded', 'true');
   activeKeywordTrigger = trigger;
+  // The built-in summary is available immediately; augment it from the bundled
+  // bilingual PoE2DB glossary without delaying tree or detail rendering.
+  void loadKeywordGlossary().then(catalog => {
+    if (activeKeywordTrigger !== trigger || $('keyword-note').hidden) return;
+    const note = lookupKeyword(catalog, key, state.language);
+    if (!note) return;
+    $('keyword-note-body').textContent = note.description;
+    if (/^[A-Za-z0-9_-]+$/.test(note.path || '')) {
+      $('keyword-note-source').href = 'https://poe2db.tw/' +
+        (state.language === 'ko' ? 'kr' : 'us') + '/' + encodeURIComponent(note.path);
+    }
+  });
   if (window.matchMedia('(max-width:850px)').matches)
     $('keyword-note').scrollIntoView({block:'nearest', behavior:'smooth'});
 }
