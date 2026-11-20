@@ -15,7 +15,7 @@ export class TreeRenderer {
     this.isInteracting = false;
     this.allocated = new Set();
     this.zoom = .03; this.centerX = 0; this.centerY = 0;
-    this.width = 0; this.height = 0; this.selectedId = null; this.searchMatches = new Set();
+    this.width = 0; this.height = 0; this.selectedId = null; this.searchMatches = new Set(); this.searchActive = false;
     this.pointerMap = new Map(); this.pointerStart = null; this.pinchStart = null;
     this.isTouch = window.matchMedia('(pointer:coarse)').matches;
     this.pendingDraw = false;
@@ -57,6 +57,7 @@ export class TreeRenderer {
     this.selectedId = options.selectedId ?? null;
     this.localizeName = options.localizeName ?? (n => n.name);
     this.searchMatches = options.searchMatches ?? new Set();
+    this.searchActive = !!options.searchActive;
     this.fitAll();
   }
   loadBackground(className) {
@@ -88,7 +89,8 @@ export class TreeRenderer {
     if (options.allocated) this.allocated = options.allocated;
     if ('selectedId' in options) this.selectedId = options.selectedId;
     if ('lockedOracle' in options) this.lockedOracle = options.lockedOracle;
-    if (options.searchMatches) this.searchMatches = options.searchMatches;
+    if ('searchMatches' in options) this.searchMatches = options.searchMatches;
+    if ('searchActive' in options) this.searchActive = !!options.searchActive;
     if (options.localizeName) this.localizeName = options.localizeName;
     this.schedule();
   }
@@ -168,7 +170,7 @@ export class TreeRenderer {
       const activated = (this.allocated.has(a.id) || this.rootIds.has(a.id)) && (this.allocated.has(b.id) || this.rootIds.has(b.id));
       const selected = a.id === this.selectedId || b.id === this.selectedId;
       // Unallocated edges stay understated at full-tree zoom; active/selected paths stand out.
-      ctx.strokeStyle = activated ? '#69baa9' : selected ? '#b8a174bb' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
+      ctx.strokeStyle = activated ? '#69baa9' : selected ? '#b8a174bb' : this.searchActive ? '#465b6f2a' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
       ctx.beginPath();
       const sameOrbit = edge.orbit && a.group === b.group && a.orbit === b.orbit &&
         Number.isFinite(a.groupX) && Number.isFinite(a.groupY);
@@ -209,7 +211,8 @@ export class TreeRenderer {
       ctx.fillStyle = highlighted ? '#ead19750' : '#7fbdd12d'; ctx.fill();
       ctx.strokeStyle = highlighted ? '#f7d78f' : '#96d1f1'; ctx.lineWidth = highlighted ? 2 : 1.2; ctx.stroke();
     }
-    ctx.globalAlpha = locked ? .55 : 1;
+    const dimmed = this.searchActive && !activeSearch && !highlighted && !allocated;
+    ctx.globalAlpha = locked ? .55 : dimmed ? .30 : 1;
     const rendered = this.drawOfficialNode(n, p, allocated);
     if (rendered) {
       if (this.zoom >= .2 && (n.category === 'keystone' || n.category === 'start')) {
@@ -218,6 +221,7 @@ export class TreeRenderer {
       }
       ctx.globalAlpha = 1;
       this.drawWeaponSetRing(n, p, radius, allocated);
+      if (activeSearch || highlighted) this.drawSearchOutline(p, radius, highlighted);
       return;
     }
     ctx.fillStyle = allocated ? '#54d9b6' : '#111c2a';
@@ -233,6 +237,19 @@ export class TreeRenderer {
     }
     ctx.globalAlpha = 1;
     this.drawWeaponSetRing(n, p, radius, allocated);
+    if (activeSearch || highlighted) this.drawSearchOutline(p, radius, highlighted);
+  }
+  drawSearchOutline(position, radius, selected) {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius + (selected ? 9 : 7), 0, Math.PI * 2);
+    ctx.lineWidth = selected ? 3 : 2.2;
+    ctx.strokeStyle = selected ? '#ffe3a0' : '#ffd567';
+    ctx.shadowColor = selected ? '#efb858' : '#f4c04e';
+    ctx.shadowBlur = selected ? 12 : 9;
+    ctx.stroke();
+    ctx.restore();
   }
   drawWeaponSetRing(n, position, radius, allocated) {
     if (!allocated || this.zoom < .09) return;
