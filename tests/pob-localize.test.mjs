@@ -70,6 +70,6 @@ test('escaped newline PoB jewels keep every line when translated',()=>{
   const translated=localizePobItemText(literal,'ko',d);
   assert.match(translated,/등급: 희귀/);
   assert.match(translated,/Integration Jewel/);
-  assert.match(translated,/\+12 to Life/);
+  assert.match(translated,/생명력 \+12/);
   assert.equal(localizePobItemText(literal,'en',d),literal);
 });
