@@ -16,7 +16,7 @@ test('name, translated description and original English description can all be s
 });
 
 test('search supports multiword AND terms, Unicode NFKC and exact IDs', () => {
-  assert.deepEqual(searchPassiveIndex(index, '화염 증가').map(r => r.id), [15, 12]);
+  assert.deepEqual(searchPassiveIndex(index, '화염 증가').map(r => r.id), [12, 15]);
   assert.deepEqual(searchPassiveIndex(index, '15').map(r => r.id)[0], 15);
   assert.equal(normalizePassiveText('  ＦＩＲＥ   Damage  '), 'fire damage');
   assert.deepEqual(searchPassiveIndex(index, '  ').map(r => r.id), []);
