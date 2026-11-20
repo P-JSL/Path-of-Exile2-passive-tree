@@ -485,7 +485,8 @@ function toggleAllocation() {
     saveAllocated(result);
     toast(t('refundSuccess',{count:removed}));
   } else {
-    const route = shortestAllocationPath(model, id, currentIds, set, root, nodeAllowed);
+    // GGG marks three special nodes as free; one of them has no physical graph edge.
+    const route = n.isFreeAllocate ? [id] : shortestAllocationPath(model, id, currentIds, set, root, nodeAllowed);
     if (route === null) { toast(t('pathFail')); return; }
     const check = validateAllocationRoute(model, set, route, ruleContext());
     if (!check.ok) { toast(ruleMessage(check)); return; }
