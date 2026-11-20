@@ -3,13 +3,14 @@ export const DEFAULT_LANGUAGE = 'ko';
 export const SUPPORTED_LANGUAGES = ['ko', 'en'];
 const STRINGS = {
   ko: {
-    settings:'빌드 설정',tabNav:'트리 유형',mainAria:'패시브 트리 지도',version:'PoE2 0.5 · 공식 내보내기 기반',docTitle:'Exile Tree | PoE2 패시브 트리',language:'언어',languageHint:'한국어가 기본이며, 번역되지 않은 게임 데이터는 원문으로 표시합니다.',
+    settings:'빌드 설정',tabNav:'트리 유형',mainAria:'패시브 트리 지도',version:'PoE2 0.5 · 공식 내보내기 기반',docTitle:'Exile Tree | PoE2 패시브 트리',language:'언어',languageHint:'한국어 사전을 확장했습니다. 한국어 번역이 검증되지 않은 문구는 영문으로 표시합니다.',
     tabPassive:'일반 패시브',tabAscendancy:'전직 트리',tabAtlas:'아틀라스',tabGenesis:'제네시스',
     class:'기본 직업',ascendancy:'전직 직업',search:'패시브 검색',searchPlaceholder:'노드 이름 또는 효과 검색',
     searchHint:'선택한 트리에서 노드 이름과 효과를 검색합니다.',searchClear:'검색어 지우기',
     oracleHeader:'오라클 · 보이지 않는 길',oracleToggle:'보이지 않는 길 노드 표시',
     oracleHint:'오라클 전직에서 열리는 추가 패시브입니다. 배분하려면 전직 노드를 먼저 획득해야 합니다.',
     planPoints:'계획 포인트',clear:'초기화',normal:'일반',ascPoints:'전직',independent:'별도 트리',
+    allocatedHeader:'배분한 패시브 노드',allocatedHint:'각 트리에서 사용한 노드와 효과를 확인할 수 있습니다. 노드를 누르면 지도에서 해당 위치로 이동합니다.',allocatedEmpty:'아직 배분한 노드가 없습니다.',
     share:'링크 복사 · 계획 공유',storageHint:'브라우저에 계획을 자동 저장합니다. 실제 게임 배분 규칙은 별도로 확인하세요.',
     dataBased:'실제 데이터 기반',dataLoading:'데이터를 불러오고 있습니다.',
     origin:'GGG 패시브 원본',pob:'Path of Building 추출 데이터',
@@ -53,13 +54,14 @@ const STRINGS = {
     noAsc:'선택 없음'
   },
   en: {
-    settings:'BUILD CONFIGURATION',tabNav:'Tree views',mainAria:'Passive skill tree map',version:'PoE2 0.5 · GGG export',docTitle:'Exile Tree | PoE2 Passive Tree',language:'Language',languageHint:'Korean is the default. Missing game terms keep their original English text.',
+    settings:'BUILD CONFIGURATION',tabNav:'Tree views',mainAria:'Passive skill tree map',version:'PoE2 0.5 · GGG export',docTitle:'Exile Tree | PoE2 Passive Tree',language:'Language',languageHint:'Expanded Korean translations. Unverified terms remain in their original English.',
     tabPassive:'Passive tree',tabAscendancy:'Ascendancy tree',tabAtlas:'Atlas',tabGenesis:'Genesis',
     class:'Base class',ascendancy:'Ascendancy',search:'Search passives',searchPlaceholder:'Search names or effects',
     searchHint:'Search node names and effects in this tree.',searchClear:'Clear search',
     oracleHeader:'ORACLE · HIDDEN PATHS',oracleToggle:'Show hidden path nodes',
     oracleHint:'Extra Oracle nodes. Allocate The Unseen Path first to plan their allocation.',
     planPoints:'Planned points',clear:'Clear',normal:'Passive',ascPoints:'Ascendancy',independent:'Separate tree',
+    allocatedHeader:'Allocated passive nodes',allocatedHint:'Review each allocated node and its effects. Tap a node to focus it on the tree.',allocatedEmpty:'No nodes allocated yet.',
     share:'Copy link · Share plan',storageHint:'Your plan is stored in this browser. Verify in-game rules separately.',
     dataBased:'From game data',dataLoading:'Loading data.',
     origin:'GGG passive export',pob:'Path of Building data',
@@ -149,6 +151,9 @@ export function passiveName(name, language = DEFAULT_LANGUAGE, catalog = {}) {
 export function passiveStat(line, language = DEFAULT_LANGUAGE, catalog = {}) {
   if (language === 'en' || !line) return line || '';
   if (catalog.stats?.[line]) return catalog.stats[line];
+  // In-game square-bracket links are display markup, not part of translation keys.
+  const plain = line.replace(/\\[([^\\]|]+)\\|([^\\]]+)\\]/g, '$2');
+  if (plain !== line && catalog.stats?.[plain]) return catalog.stats[plain];
   let match = /^\+(\d+) to any Attribute$/.exec(line);
   if (match) return '임의의 능력치 +' + match[1];
   match = /^\+(\d+) to (Strength|Dexterity|Intelligence)$/.exec(line);
