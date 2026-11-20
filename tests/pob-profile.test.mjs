@@ -60,3 +60,26 @@ test('profile renders safely using textContent without interpolating build HTML'
     assert.equal(stats[0].children[1].textContent,'1467894');
   } finally {globalThis.document=oldDocument;}
 });
+
+test('alternate source equipment and skill sets are selectable without mutating active PoB IDs',()=>{
+  const alternative={
+    ...source,
+    itemSets:[...source.itemSets,{
+      id:'3',title:'Second gear',slots:[{name:'Helmet',itemId:'8',
+        text:'Rarity: RARE\nAlternate Helm\n+60 Mana'}]
+    }],
+    skillSets:[...source.skillSets,{
+      id:'5',title:'Speed',groups:[{label:'Faster skills',gems:[
+        {name:'Tempest',level:'16',quality:'0',enabled:true}
+      ]}]
+    }]
+  };
+  const snapshot=profileSnapshot(alternative,0,{itemSetId:'3',skillSetId:'5'});
+  assert.equal(snapshot.itemSet.id,'3');
+  assert.equal(snapshot.equipment[0].title,'Alternate Helm');
+  assert.equal(snapshot.skillSet.id,'5');
+  assert.equal(snapshot.skillGroups[0].gems[0].name,'Tempest');
+  assert.equal(alternative.activeItemSet,'2');
+  assert.equal(alternative.activeSkillSet,'4');
+  assert.equal(profileSnapshot(alternative).itemSet.id,'2');
+});
