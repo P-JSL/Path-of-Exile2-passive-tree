@@ -1,6 +1,7 @@
 import { importPobCode, resolvePobTree } from './pob-import.js';
 import { renderPobProfile } from './pob-profile.js';
 import { partitionPobWeaponSets } from './weapon-sets.js';
+import { socketedJewelDetails } from './pob-jewels.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
 import { buildPassiveSearchIndex, searchPassiveIndex } from './passive-search.js';
@@ -372,7 +373,8 @@ function scene() {
     ? importedPob.build.specs[importedPob.selectedIndex] : null;
   updateWeaponSetControls();
   renderer.setScene(currentNodes, model.edges, { allocated: displayedAllocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className),
-    weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []) });
+    weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []),
+    socketedJewelIds: new Set(socketedJewelDetails(importSpec).keys()) });
   // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
   // Keep the entire world rendered and the existing Fit All control available.
   if (state.mode === 'passive' || state.mode === 'ascendancy') {
@@ -506,6 +508,13 @@ function showDetail(n) {
     appendSkillDescription(p, line, translatedLines.length ? keywordMarkupForNode(n, index) : null);
     $('detail-stats').append(p);
   });
+  const importSpec = state.mode === 'passive' &&
+    importedPob?.build.className === state.className
+      ? importedPob.build.specs[importedPob.selectedIndex] : null;
+  const jewels = socketedJewelDetails(importSpec).get(n.id) || [];
+  $('pob-jewel-detail').hidden = !jewels.length;
+  $('pob-jewel-text').textContent = jewels.map(item =>
+    item.text || ('Item ID ' + item.itemId)).join('\n\n');
   const control = $('attribute-control');
   const choice = $('attribute-select');
   const selectable = state.mode === 'passive' && isAnyAttributeNode(n);
@@ -945,7 +954,7 @@ function wireUI() {
     if (!importedPob || !confirm(t('pobDeleteConfirm'))) return;
     importedPob = null;
     pobWeaponView = 'all';
-    renderer?.update({allocated:allocatedSet(),weaponSet1:new Set(),weaponSet2:new Set()});
+    renderer?.update({allocated:allocatedSet(),weaponSet1:new Set(),weaponSet2:new Set(),socketedJewelIds:new Set()});
     updateWeaponSetControls();
     setPobBuildView(false);
     try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
