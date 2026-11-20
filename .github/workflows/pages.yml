@@ -1,20 +1,17 @@
-name: Publish Exile Tree to GitHub Pages
+name: Validate Exile Tree
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
-  group: pages
+  group: validate-exile-tree-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  build:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,12 +20,8 @@ jobs:
           node-version: '22'
       - name: Validate bundled tree and web application
         run: |
+          node --check assets/app.js
+          node --check assets/i18n.js
+          node --check assets/renderer.js
           node scripts/validate.mjs
           node --test tests/*.test.mjs
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - id: deployment
-        uses: actions/deploy-pages@v4
-  
