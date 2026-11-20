@@ -1,3 +1,5 @@
+import { localizePobName, localizePobSlot, localizePobMetric, localizePobItemText, localizePobGem, formatPobValue } from './pob-localize.js';
+
 /**
  * A source-backed character overview inspired by dense PoE build dashboards.
  * This does not calculate stats or construct equipment artwork that PoB lacks.
@@ -32,32 +34,31 @@ function element(name, className, content) {
   if (content !== undefined) node.textContent = content;
   return node;
 }
-function fullSourceDisclosure(raw, language) {
+function fullSourceDisclosure(raw, language, dictionary = {}) {
   const details=element('details','pob-source-details');
+  // A Korean-language user should see every equipment modifier without
+  // opening a small nested disclosure or relying on hover tooltips.
+  details.open = language === 'ko';
   details.append(
-    element('summary','',language === 'ko' ? '원본 옵션 전체 보기' : 'Show all original modifiers'),
-    element('pre','',raw)
+    element('summary','',language === 'ko' ? '장비 옵션 상세 (전체 표시)' : 'Show all original modifiers'),
+    element('pre','',localizePobItemText(raw,language,dictionary))
   );
   return details;
 }
-const statsKo = {
-  TotalDPS:'전체 DPS', TotalDotDPS:'지속 피해 DPS', FullDPS:'총 피해 DPS',
-  Life:'생명력', Mana:'마나', EnergyShield:'에너지 보호막',
-  Armour:'방어도', Evasion:'회피', BlockChance:'막기 확률',
-  FireResist:'화염 저항', ColdResist:'냉기 저항', LightningResist:'번개 저항',
-  ChaosResist:'카오스 저항', MovementSpeed:'이동 속도', Spirit:'정신력',
-  EffectiveHitPool:'유효 생명력', PhysicalDamageReduction:'물리 피해 감소'
-};
-export function renderPobProfile(build, specIndex, language = 'ko', selected = {}) {
+export function renderPobProfile(build, specIndex, language = 'ko', selected = {}, locale = {}) {
   const {spec,equipment,skillGroups,jewels,stats,itemSet,skillSet} = profileSnapshot(build,specIndex,selected);
-  const displayName = [build.ascendancyName || build.className, build.level ? 'Lv ' + build.level : '']
+  const dictionary = locale.dictionary || {};
+  const characterName = locale.characterName || (name => localizePobName(name,language,dictionary));
+  const displayName = [characterName(build.ascendancyName || build.className),
+    build.level ? (language === 'ko' ? '레벨 ' : 'Lv ') + build.level : '']
     .filter(Boolean).join(' · ');
   document.getElementById('pob-profile-name').textContent = displayName || 'PoB2';
   document.getElementById('pob-profile-version').textContent =
-    [spec.title, spec.treeVersion ? 'PoB tree ' + spec.treeVersion : '',
-      itemSet?.title ? 'Equipment ' + itemSet.title : '',
-      skillSet?.title ? 'Skills ' + skillSet.title : '',
-      spec.nodeIds.length + ' passives'].filter(Boolean).join(' · ');
+    [localizePobName(spec.title,language,dictionary),
+      spec.treeVersion ? (language === 'ko' ? '패시브 트리 ' : 'PoB tree ') + spec.treeVersion : '',
+      itemSet?.title ? (language === 'ko' ? '장비 구성 ' : 'Equipment ') + localizePobName(itemSet.title,language,dictionary) : '',
+      skillSet?.title ? (language === 'ko' ? '스킬 구성 ' : 'Skills ') + localizePobName(skillSet.title,language,dictionary) : '',
+      spec.nodeIds.length + (language === 'ko' ? '개 패시브' : ' passives')].filter(Boolean).join(' · ');
   const items = document.getElementById('pob-profile-equipment');
   const itemFragment = document.createDocumentFragment();
   for (const slot of equipment) {
@@ -67,10 +68,12 @@ export function renderPobProfile(build, specIndex, language = 'ko', selected = {
     if (/^(body-armour|helmet|gloves|boots|weapon-1|weapon-2)$/.test(position))
       tile.classList.add('slot-' + position);
     tile.title = slot.raw;
-    tile.append(element('small','',slot.name),
-      element('strong','',slot.title || (slot.text ? slot.name : (language === 'ko' ? '비어 있음' : 'Empty'))),
-      element('p','',slot.description));
-    if (slot.raw) tile.append(fullSourceDisclosure(slot.raw,language));
+    const originalTitle = slot.title || (slot.text ? slot.name : (language === 'ko' ? '비어 있음' : 'Empty'));
+    const localizedTitle = localizePobName(originalTitle,language,dictionary);
+    tile.append(element('small','',localizePobSlot(slot.name,language)),
+      element('strong','',localizedTitle),
+      element('p','',language === 'ko' ? '' : slot.description));
+    if (slot.raw) tile.append(fullSourceDisclosure(slot.raw,language,dictionary));
     itemFragment.append(tile);
   }
   if (!equipment.length) itemFragment.append(element('p','pob-profile-empty',
@@ -80,8 +83,11 @@ export function renderPobProfile(build, specIndex, language = 'ko', selected = {
   const statsFragment = document.createDocumentFragment();
   for (const stat of stats) {
     const card = element('div','pob-stat-row');
-    card.append(element('span','', language === 'ko' ? statsKo[stat.name] || stat.name : stat.name),
-      element('strong','',stat.value));
+    const caption=element('span','',localizePobMetric(stat.name,language,dictionary));
+    caption.title=stat.name; // Exact PoB metric key remains inspectable.
+    const number=element('strong','',formatPobValue(stat.value,language));
+    number.title=stat.value;
+    card.append(caption,number);
     statsFragment.append(card);
   }
   if (!stats.length) statsFragment.append(element('p','pob-profile-empty',
@@ -91,11 +97,11 @@ export function renderPobProfile(build, specIndex, language = 'ko', selected = {
   const skillsFragment = document.createDocumentFragment();
   for (const group of skillGroups) {
     const card = element('div','pob-skill-group');
-    card.append(element('strong','',group.label || group.gems[0].name));
+    card.append(element('strong','',
+      localizePobName(group.label || group.gems[0].name,language,dictionary)));
     const gems = element('div','pob-skill-gems');
     for (const gem of group.gems) {
-      const note = gem.name + (gem.level ? ' Lv ' + gem.level : '') +
-        (gem.quality ? ' Q ' + gem.quality : '');
+      const note = localizePobGem(gem,language,dictionary);
       gems.append(element('span','pob-skill-gem' + (gem.enabled ? '' : ' disabled'),note));
     }
     card.append(gems);
@@ -112,9 +118,9 @@ export function renderPobProfile(build, specIndex, language = 'ko', selected = {
   for (const jewel of jewels) {
     const card = element('div','pob-jewel-card');
     const summary = summarizePobItem(jewel.text);
-    card.append(element('strong','',summary.title || 'Jewel #' + jewel.nodeId),
-      element('p','', 'ID ' + jewel.nodeId + '\n' + summary.description));
-    card.append(fullSourceDisclosure(jewel.text,language));
+    card.append(element('strong','',localizePobName(summary.title || 'Jewel #' + jewel.nodeId,language,dictionary)),
+      element('p','',language === 'ko' ? '주얼 노드 ID ' + jewel.nodeId : 'ID ' + jewel.nodeId + '\n' + summary.description));
+    card.append(fullSourceDisclosure(jewel.text,language,dictionary));
     card.title = jewel.text;
     jewelFragment.append(card);
   }
