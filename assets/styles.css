@@ -200,3 +200,12 @@
 @media(prefers-reduced-motion:reduce){.sidebar,.details-panel,.toast{transition:none!important}}
 
 .allocation-preview{color:#b9eedb;background:#143b36;border-left:3px solid #60d8b6;padding:11px 12px;border-radius:5px;font-size:11px;line-height:1.6;margin:15px 0 0}
+
+/* Read-only PoB allocation modes are explicit and remain usable on compact screens. */
+.weapon-set-controls{display:flex;align-items:center;gap:6px;padding:3px 5px;border:1px solid #48536a;border-radius:8px;background:#172233;color:#dfcfab}
+.weapon-set-controls[hidden]{display:none}
+.weapon-set-controls label{font-size:10px;white-space:nowrap}
+.weapon-set-controls select{min-width:0;max-width:180px;color:#f4e7cf;border:1px solid #485c71;background:#22334a;border-radius:5px;padding:6px;font-size:11px}
+.weapon-set-controls>span{font-size:10px;color:#9dd8bd;white-space:nowrap}
+@media(max-width:1180px){.weapon-set-controls label,.weapon-set-controls>span{display:none}.weapon-set-controls select{max-width:135px}}
+@media(max-width:850px){.weapon-set-controls{max-width:110px;padding:2px}.weapon-set-controls select{max-width:105px;font-size:10px}.stage-tools{flex-wrap:wrap;justify-content:flex-end}}
