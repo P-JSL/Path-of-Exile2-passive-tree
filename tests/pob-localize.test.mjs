@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {localizePobName,localizePobSlot,localizePobMetric,localizePobItemLine,
+import {localizePobName,localizePobRareName,localizePobSlot,localizePobMetric,localizePobItemLine,
  localizePobItemText,localizePobGem,formatPobValue} from '../assets/pob-localize.js';
 const d={gems:{Spark:'전기불꽃','Align Fate':'운명 정렬'},
  items:{'Ancestral Tiara':'선대의 티아라'},
  uniques:{"Runeseeker's Call":'룬 탐구자의 소명'},
- ui:{'Average Hit':'평균 적중','Cast Speed':'시전 속도'}};
+ ui:{'Average Hit':'평균 적중','Cast Speed':'시전 속도'},
+ tags:{Gloom:'침울한',Salvation:'구원',Rift:'균열',Pith:'핵심'}};
 test('exact game-source Korean names never translate an arbitrary rare name',()=>{
  assert.equal(localizePobName('Spark','ko',d),'전기불꽃');
  assert.equal(localizePobName('Ancestral Tiara','ko',d),'선대의 티아라');
@@ -50,4 +51,16 @@ test('all original item lines remain present and alternate English is untouched'
  assert.equal(localizePobItemText(s,'en',d),s);
  assert.equal(localizePobGem({name:'Spark',level:'20',quality:'20',enabled:true},'ko',d),
   '전기불꽃 레벨 20 퀄리티 20');
+});
+
+test('generated rare names use source-matched terms without claiming exact translation',()=>{
+  assert.deepEqual(localizePobRareName('Gloom Salvation','ko',d),{
+    name:'침울한 구원',approximate:true
+  });
+  assert.deepEqual(localizePobRareName('Unknown Salvation','ko',d),{
+    name:'Unknown Salvation',approximate:false
+  });
+  assert.match(localizePobItemText('Rarity: RARE\nGloom Salvation\nAncestral Tiara','ko',d),
+    /등급: 희귀\n침울한 구원\n선대의 티아라/);
+  assert.equal(localizePobSlot('Weapon Swap 1'),'교체 무기 1');
 });
