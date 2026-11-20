@@ -52,6 +52,7 @@ const STRINGS = {
     genesisSubtitle:'독립된 제네시스 트리를 표시합니다.',
     canvasAria:'패시브 트리 지도. 한 손가락으로 이동하고 두 손가락으로 확대할 수 있습니다.',
     sidebarOpen:'설정 열기',sidebarClose:'설정 닫기',detailClose:'상세 닫기',
+    keywordNoteHeading:'스킬 용어 메모',keywordOpen:'{term} 설명 열기',keywordClose:'용어 메모 닫기',keywordReference:'PoE2DB 한국어 용어집에서 자세히 보기',keywordFallback:'이 용어의 상세 설명이 아직 등록되지 않았습니다. 연결된 PoE2DB 용어집에서 게임 규칙을 확인할 수 있습니다.',keywordContext:'선택한 패시브 효과: {text}',
     noAsc:'선택 없음'
   },
   en: {
@@ -104,6 +105,7 @@ const STRINGS = {
     genesisSubtitle:'Independent Genesis tree data.',
     canvasAria:'Passive skill tree. Drag to pan and pinch with two fingers to zoom.',
     sidebarOpen:'Open settings',sidebarClose:'Close settings',detailClose:'Close details',
+    keywordNoteHeading:'SKILL KEYWORD NOTE',keywordOpen:'Read about {term}',keywordClose:'Close keyword note',keywordReference:'Learn more in the PoE2DB glossary',keywordFallback:'A detailed explanation for this keyword is not yet included. Consult the linked PoE2DB glossary for the exact game rules.',keywordContext:'Selected passive effect: {text}',
     noAsc:'None'
   }
 };
