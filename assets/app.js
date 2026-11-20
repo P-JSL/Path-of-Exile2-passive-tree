@@ -334,7 +334,10 @@ function scene() {
     ? t('oracleStatus',{status:t(oracleUnlocked()?'oracleReady':'oracleLocked')})
     : t('sceneDefault');
   if (state.selectedId) showDetail(model.nodes.get(state.selectedId)); else showDetail(null);
-  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className) });
+  const importSpec = state.mode === 'passive' && importedPob?.build.className === state.className
+    ? importedPob.build.specs[importedPob.selectedIndex] : null;
+  renderer.setScene(currentNodes, model.edges, { allocated: allocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className),
+    weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []) });
   // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
   // Keep the entire world rendered and the existing Fit All control available.
   if (state.mode === 'passive' || state.mode === 'ascendancy') {
@@ -584,7 +587,7 @@ function renderPobOverview() {
   }
   select.value = String(selectedIndex);
   $('pob-meta').textContent = [build.className, build.ascendancyName, build.level ? 'Lv ' + build.level : '', 'Nodes ' + spec.nodeIds.length]
-    .filter(Boolean).join(' · ');
+    .filter(Boolean).join(' · ') + ' · W1 ' + spec.weaponSets[0].length + ' / W2 ' + spec.weaponSets[1].length;
   const resolution = resolvePobTree(build, tree, selectedIndex);
   const issues = [];
   if (resolution.unknown.length) issues.push(t('pobMissing',{count:resolution.unknown.length}));
@@ -607,6 +610,8 @@ function renderPobOverview() {
     set.slots.filter(slot => slot.text).map(slot => [
       (set.title || set.id || 'Set') + ' · ' + slot.name, slot.text
     ])), t('pobNoGear'));
+  addPobSection(groups, t('pobJewels'), spec.sockets.filter(socket => socket.text).map(socket =>
+    ['ID ' + socket.nodeId, socket.text]), t('pobNoJewels'));
   addPobSection(groups, t('pobConfig'), build.configSets.flatMap(set =>
     set.inputs.map(input => [
       (set.title || set.id || 'Set') + ' · ' + (input.name || 'Input'),
@@ -680,6 +685,7 @@ async function restorePobSource() {
       selectedIndex:Number.isInteger(saved.selectedIndex) && data.specs[saved.selectedIndex]
         ? saved.selectedIndex : data.activeIndex};
     renderPobOverview();
+    if (state.mode === 'passive' && state.className === data.className) scene();
   } catch(error) {
     console.warn('Saved PoB source cannot be restored:', error);
   }
@@ -716,6 +722,7 @@ function wireUI() {
       renderer.update({localizeName:localName});
       showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
       renderAllocatedList(); refreshSearch(); updateDataSummary();
+      renderPobOverview();
     }
     persist();
   });
