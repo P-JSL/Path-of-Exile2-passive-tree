@@ -31,10 +31,13 @@ jobs:
           node --check assets/extra-model.js
           node --check assets/attributes.js
           node --check scripts/build-ko-stats.mjs
+          node --check scripts/build-keyword-notes.mjs
           node scripts/validate.mjs
           node --test tests/*.test.mjs
       - name: Build bundled Korean stat translations
         run: node scripts/build-ko-stats.mjs
+      - name: Bundle Korean and English skill keyword notes
+        run: node scripts/build-keyword-notes.mjs
       - name: Bust browser cache for the validated application entry point
         run: |
           sed -i 's@src="./assets/app.js"@src="./assets/app.js?v='${GITHUB_SHA}'"@' index.html
