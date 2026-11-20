@@ -16,6 +16,17 @@ export function choiceGroups(tree) {
   return groups;
 }
 
+/** Options made unavailable by another allocated option in the same game-defined group. */
+export function blockedChoiceOptions(tree, allocated) {
+  const selected = allocated instanceof Set ? allocated : new Set(allocated);
+  const blocked = new Set();
+  for (const {options} of choiceGroups(tree)) {
+    if (!options.some(id => selected.has(id))) continue;
+    for (const id of options) if (!selected.has(id)) blocked.add(id);
+  }
+  return blocked;
+}
+
 export function pointCost(node) {
   return node?.isFreeAllocate ? 0 : 1;
 }
@@ -104,7 +115,15 @@ export function auditAllocations(tree, selected, context = {}) {
     findings.push({reason:'pointBudget',used:countUsedPoints(tree,current),max});
   for (const id of current) {
     const node = tree.nodes.get(id);
-    if (!node) {findings.push({reason:'unavailable',nodeIds:[id]});continue;}
+    if (!node) { findings.push({reason:'unavailable',nodeIds:[id]}); continue; }
+    if (context.visibleIds && !context.visibleIds.has(id))
+      findings.push({reason:'unavailable',nodeIds:[id]});
+    if (node.classesStart || node.isAscendancyStart || node.isOnlyImage ||
+        starts.includes(id))
+      findings.push({reason:'unallocatable',nodeIds:[id]});
+    if ((node.ascendancyName && (context.mode !== 'ascendancy' || node.ascendancyName !== context.ascendancy)) ||
+        (context.mode === 'ascendancy' && node.ascendancyName !== context.ascendancy))
+      findings.push({reason:'otherAscendancy',nodeIds:[id]});
     const constraint = node.unlockConstraint;
     if (!constraint) continue;
     if (constraint.ascendancy && constraint.ascendancy !== context.ascendancy) {
