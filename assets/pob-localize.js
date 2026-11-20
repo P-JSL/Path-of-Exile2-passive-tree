@@ -200,7 +200,7 @@ export function localizePobItemLine(value,language='ko',dict={}) {
   const line=String(value||'').trim();
   if(language!=='ko'||!line)return line;
   if(/^[-─]{3,}$/.test(line))return '────────';
-  let m=/^Rarity:\s*(\w+)/i.exec(line);
+  let m=/^Rarity:\s*(\w+)$/i.exec(line);
   if(m)return '등급: '+(rarities[m[1].toUpperCase()]||m[1]);
   m=/^([^:]+):\s*(.*)$/.exec(line);
   if(m && (fields[m[1]] || exact(dict.ui,m[1])))
@@ -213,7 +213,9 @@ export function localizePobItemLine(value,language='ko',dict={}) {
 }
 export function localizePobItemText(raw,language='ko',dict={}) {
   if(language!=='ko')return String(raw||'');
-  const lines=String(raw||'').split(/\r?\n/);
+  // PoB exports normally contain real newlines; some embedded item texts
+  // contain literal backslash-n escapes. Handle both, display-only.
+  const lines=String(raw||'').replace(/\\n/g,'\n').split(/\r?\n/);
   // Only the first item name below the rarity line is a generated rare name.
   // The following base type and modifiers retain their own exact lookup rules.
   const rarity= /^Rarity:\s*RARE\b/i.test(lines[0]?.trim()||'');
