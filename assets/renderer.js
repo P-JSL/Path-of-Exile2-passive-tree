@@ -158,6 +158,9 @@ export class TreeRenderer {
     // Each connection uses actual source and target skill IDs; nonzero orbit edges curve.
     const d = this.zoom;
     ctx.lineWidth = Math.max(.65, Math.min(2.8, .9 + d * 2));
+    // Combine same-color connectors into a few strokes per frame instead of
+    // issuing thousands of expensive Canvas stroke() calls on every pan.
+    const edgePaths = typeof Path2D === 'undefined' ? null : new Map();
     for (const edge of this.viewportIndex.visibleEdges(left, top, right, bottom, 500)) {
       const a = this.nodeMap.get(edge.a), b = this.nodeMap.get(edge.b);
       // Orbit arcs can cross the viewport when both endpoints are off-screen.
@@ -173,8 +176,12 @@ export class TreeRenderer {
       const selected = a.id === this.selectedId || b.id === this.selectedId;
       // Unallocated edges stay understated at full-tree zoom; active/selected paths stand out.
       const route = (this.previewPath.has(a.id) && this.previewPath.has(b.id));
-      ctx.strokeStyle = route ? '#e2b868' : activated ? '#69baa9' : selected ? '#b8a174bb' : this.searchActive ? '#465b6f2a' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
-      ctx.beginPath();
+      const style = route ? '#e2b868' : activated ? '#69baa9' : selected ? '#b8a174bb' : this.searchActive ? '#465b6f2a' : a.hiddenOracle || b.hiddenOracle ? '#69618a55' : '#66788e54';
+      let path;
+      if (edgePaths) {
+        path = edgePaths.get(style);
+        if (!path) { path = new Path2D(); edgePaths.set(style, path); }
+      } else { path = ctx; ctx.strokeStyle = style; ctx.beginPath(); }
       const sameOrbit = edge.orbit && a.group === b.group && a.orbit === b.orbit &&
         Number.isFinite(a.groupX) && Number.isFinite(a.groupY);
       const radius = (this.orbitRadii[a.orbit] || 0) * this.zoom;
@@ -187,11 +194,17 @@ export class TreeRenderer {
         let sweep = end - start;
         if (sweep > Math.PI) sweep -= Math.PI * 2;
         if (sweep < -Math.PI) sweep += Math.PI * 2;
-        ctx.arc(center.x, center.y, radius, start, start + sweep, sweep < 0);
+        // Explicit moveTo isolates this arc from other paths in its color batch.
+        path.moveTo(p.x, p.y);
+        path.arc(center.x, center.y, radius, start, start + sweep, sweep < 0);
       } else {
-        ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+        path.moveTo(p.x, p.y); path.lineTo(q.x, q.y);
       }
-      ctx.stroke();
+      if (!edgePaths) ctx.stroke();
+    }
+    if (edgePaths) for (const [style, path] of edgePaths) {
+      ctx.strokeStyle = style;
+      ctx.stroke(path);
     }
     const normal = [], special = [];
     for (const n of this.viewportIndex.visibleNodes(left, top, right, bottom, 500)) {
@@ -250,7 +263,7 @@ export class TreeRenderer {
     ctx.lineWidth = selected ? 3 : 2.2;
     ctx.strokeStyle = selected ? '#ffe3a0' : previewed ? '#62e4c5' : '#ffd567';
     ctx.shadowColor = selected ? '#efb858' : previewed ? '#29caa9' : '#f4c04e';
-    ctx.shadowBlur = selected ? 12 : 9;
+    ctx.shadowBlur = selected ? 9 : this.searchMatches.size > 80 ? 0 : 5;
     ctx.stroke();
     ctx.restore();
   }
