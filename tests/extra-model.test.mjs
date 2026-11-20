@@ -19,7 +19,10 @@ test('atlas adapter reproduces node IDs, radius, text, and graph',()=>{
   assert.equal(model.nodes.get(2).x,182);
   assert.ok(Math.abs(model.nodes.get(2).y) < 1e-9);
   assert.equal(model.nodes.get(2).stats[0],'Gain 10 Damage');
+  assert.equal(model.nodes.get(2).statsSource,'gameText');
   assert.equal(model.nodes.get(3).stats[0],'increase: 40');
+  assert.equal(model.nodes.get(3).statsSource,'internalKeys');
+  assert.equal(model.nodes.get(4).statsSource,'none');
   assert.equal(model.nodes.get(3).category,'notable');
   assert.deepEqual(shortestAllocationPath(model,3,new Set(model.nodes.keys()),new Set(),model.roots),[2,3]);
   assert.equal(pruneAllocations(model,new Set([3]),model.roots,new Set(model.nodes.keys())).removed,1);
