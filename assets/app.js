@@ -1,3 +1,4 @@
+import { importPobCode, resolvePobTree } from './pob-import.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
 import { buildExtraTree } from './extra-model.js';
@@ -10,6 +11,8 @@ const $ = id => document.getElementById(id);
 const DATA_FILES = { passive: './data/tree.json', atlas: './data/atlas.json', genesis: './data/genesis.json' };
 const VALID_MODES = ['passive', 'ascendancy', 'atlas', 'genesis'];
 const KEY = 'exile-tree-plans-v1';
+const POB_SOURCE_KEY = 'exile-tree-pob2-source-v1';
+let importedPob = null;
 let tree = null, renderer = null, extraTrees = {};
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
@@ -543,6 +546,145 @@ function showCopyFallback(url) {
   // Safari file:// and private-context fallback without clipboard permission.
   window.prompt(t('shareFallback'), url);
 }
+
+// PoB source is kept separately from editable allocations: the original export
+// cannot honestly claim to include changes made in this web planner.
+function addPobSection(container, title, blocks, empty = '') {
+  const section = document.createElement('details');
+  section.className = 'pob-section';
+  const heading = document.createElement('summary');
+  heading.textContent = title + ' (' + blocks.length + ')';
+  section.append(heading);
+  if (!blocks.length) {
+    const p = document.createElement('p'); p.textContent = empty;
+    section.append(p);
+  }
+  for (const [headingText, bodyText] of blocks) {
+    const group = document.createElement('div'); group.className = 'pob-entry';
+    const label = document.createElement('strong'); label.textContent = headingText;
+    const content = document.createElement('pre'); content.textContent = bodyText;
+    group.append(label, content); section.append(group);
+  }
+  container.append(section);
+}
+function renderPobOverview() {
+  const panel = $('pob-overview');
+  if (!importedPob || !tree) { panel.hidden = true; return; }
+  const { build, selectedIndex } = importedPob;
+  panel.hidden = false;
+  const spec = build.specs[selectedIndex];
+  const select = $('pob-spec-select');
+  const previous = select.value;
+  select.replaceChildren();
+  for (const [index, item] of build.specs.entries()) {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = (index + 1) + '. ' + (item.title || item.treeVersion || 'Tree');
+    select.append(option);
+  }
+  select.value = String(selectedIndex);
+  $('pob-meta').textContent = [build.className, build.ascendancyName, build.level ? 'Lv ' + build.level : '', 'Nodes ' + spec.nodeIds.length]
+    .filter(Boolean).join(' · ');
+  const resolution = resolvePobTree(build, tree, selectedIndex);
+  const issues = [];
+  if (resolution.unknown.length) issues.push(t('pobMissing',{count:resolution.unknown.length}));
+  if (resolution.incompatible.length) issues.push(t('pobIncompatible',{count:resolution.incompatible.length}));
+  // The parser supports multiple historical PoB tree versions. Never silently
+  // imply that a mismatched snapshot recreates the same game state.
+  if (spec.treeVersion && spec.treeVersion !== tree.version)
+    issues.push(t('pobVersionWarning',{version:spec.treeVersion,local:tree.version}));
+  issues.push(t('pobReadOnly'));
+  $('pob-warning').textContent = issues.join('\n');
+  const groups = $('pob-summary-lists');
+  groups.replaceChildren();
+  addPobSection(groups, t('pobSkills'), build.skillSets.flatMap(set =>
+    set.groups.map((group, index) => [
+      (set.title || set.id || 'Set') + ' · ' + (group.label || group.slot || 'Group ' + (index + 1)),
+      group.gems.map(gem => (gem.enabled ? '' : '[OFF] ') + gem.name +
+        (gem.level ? ' Lv ' + gem.level : '') + (gem.quality ? ' Q ' + gem.quality : '')).join('\n')
+    ])), t('pobNoSkills'));
+  addPobSection(groups, t('pobItems'), build.itemSets.flatMap(set =>
+    set.slots.filter(slot => slot.text).map(slot => [
+      (set.title || set.id || 'Set') + ' · ' + slot.name, slot.text
+    ])), t('pobNoGear'));
+  addPobSection(groups, t('pobConfig'), build.configSets.flatMap(set =>
+    set.inputs.map(input => [
+      (set.title || set.id || 'Set') + ' · ' + (input.name || 'Input'),
+      Object.entries(input).filter(([key]) => key !== 'name').map(([key,value]) => key + ': ' + value).join(', ')
+    ])), t('pobNoConfig'));
+  addPobSection(groups, t('pobStats'), build.stats.map(stat => [stat.name, stat.value]));
+  if (build.notes) addPobSection(groups, t('pobNotes'), [[t('pobNotes'), build.notes]]);
+}
+function applyImportedPobSelection(index, requireConfirmation = true) {
+  if (!importedPob || !tree) return false;
+  const target = resolvePobTree(importedPob.build, tree, index);
+  if (target.spec.nodeIds.length && !target.ordinary.length && !target.specialized.length)
+    throw new Error('현재 트리 데이터와 일치하는 배분 노드가 없습니다. 다른 패치 버전의 PoB 코드일 수 있습니다.');
+  const existing = state.allocations[target.className] || [];
+  const priorAsc = target.ascendancy ? (state.ascAllocations[target.ascendancy] || []) : [];
+  if (requireConfirmation && (existing.length || priorAsc.length) && !confirm(t('pobConfirm'))) return false;
+  state.className = target.className;
+  state.ascendancy = target.ascendancy ||
+    tree.ascendancies.find(a => a.className === target.className)?.name || '';
+  state.mode = 'passive';
+  state.selectedId = null;
+  state.search = '';
+  $('search-input').value = '';
+  state.allocations[state.className] = target.ordinary;
+  if (target.ascendancy) state.ascAllocations[target.ascendancy] = target.specialized;
+  state.attributeChoices[state.className] = Object.fromEntries(
+    Object.entries(target.spec.attributeChoices).filter(([id]) => target.ordinary.includes(Number(id))));
+  importedPob.selectedIndex = index;
+  searchCache = null;
+  persist();
+  populateClasses(); scene(); renderPobOverview();
+  $('pob-import-result').textContent = t('pobImported');
+  return true;
+}
+async function importPobFromInput() {
+  const button = $('pob-import'), result = $('pob-import-result');
+  const source = $('pob-code').value.trim();
+  button.disabled = true;
+  result.textContent = '';
+  try {
+    const data = await importPobCode(source);
+    const previous = importedPob;
+    importedPob = {build:data, selectedIndex:data.activeIndex, source};
+    try {
+      if (!applyImportedPobSelection(data.activeIndex, true)) {
+        importedPob = previous;
+        renderPobOverview();
+        return;
+      }
+    } catch(error) {
+      importedPob = previous;
+      renderPobOverview();
+      throw error;
+    }
+    try { localStorage.setItem(POB_SOURCE_KEY, JSON.stringify({source, selectedIndex:data.activeIndex})); }
+    catch { result.textContent = t('pobImported') + ' · Local storage unavailable'; }
+    $('pob-code').value = '';
+    if (window.matchMedia('(max-width:850px)').matches) openOverlay('details');
+  } catch (error) {
+    result.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+async function restorePobSource() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(POB_SOURCE_KEY) || 'null');
+    if (!saved?.source || !tree) return;
+    const data = await importPobCode(saved.source);
+    importedPob = {build:data,source:saved.source,
+      selectedIndex:Number.isInteger(saved.selectedIndex) && data.specs[saved.selectedIndex]
+        ? saved.selectedIndex : data.activeIndex};
+    renderPobOverview();
+  } catch(error) {
+    console.warn('Saved PoB source cannot be restored:', error);
+  }
+}
+
 function openOverlay(which) {
   const sidebar = which === 'sidebar', details = which === 'details';
   $('sidebar').classList.toggle('open', sidebar);
@@ -609,6 +751,30 @@ function wireUI() {
   $('fit-all').addEventListener('click', () => renderer.fitAll());
   $('focus-start').addEventListener('click', focusStart);
   $('share-plan').addEventListener('click', sharePlan);
+  $('pob-import').addEventListener('click', () => { void importPobFromInput(); });
+  $('pob-spec-select').addEventListener('change', e => {
+    try {
+      if (!applyImportedPobSelection(Number(e.target.value))) e.target.value = String(importedPob.selectedIndex);
+      else {
+        const saved = JSON.parse(localStorage.getItem(POB_SOURCE_KEY) || 'null');
+        if (saved) { saved.selectedIndex = importedPob.selectedIndex; localStorage.setItem(POB_SOURCE_KEY, JSON.stringify(saved)); }
+      }
+    } catch (error) { $('pob-warning').textContent = error.message; e.target.value = String(importedPob.selectedIndex); }
+  });
+  $('pob-copy-source').addEventListener('click', () => {
+    if (!importedPob) return;
+    const code = importedPob.source;
+    if (navigator.clipboard && window.isSecureContext)
+      navigator.clipboard.writeText(code).then(() => toast(t('pobOriginalCopied')), () => showCopyFallback(code));
+    else showCopyFallback(code);
+  });
+  $('pob-delete').addEventListener('click', () => {
+    if (!importedPob || !confirm(t('pobDeleteConfirm'))) return;
+    importedPob = null;
+    try { localStorage.removeItem(POB_SOURCE_KEY); } catch {}
+    $('pob-import-result').textContent = '';
+    renderPobOverview();
+  });
   $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
   $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
@@ -644,6 +810,7 @@ async function loadTree() {
     if (isExtraMode()) await extraPromise;
     if (!renderer) renderer = new TreeRenderer($('tree-canvas'), { onSelect: onNodeSelected });
     populateClasses(); scene(); updateDataSummary();
+    void restorePobSource();
     $('loading-overlay').hidden = true;
     // Translation loading is optional; render using the source data immediately.
     await localePromise;
