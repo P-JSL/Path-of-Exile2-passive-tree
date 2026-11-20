@@ -33,12 +33,16 @@ jobs:
           node --check scripts/build-ko-stats.mjs
           node --check scripts/build-keyword-notes.mjs
           node --check scripts/version-assets.mjs
+          node --check assets/visual-assets.js
+          node --check scripts/bundle-tree-art.mjs
           node scripts/validate.mjs
           node --test tests/*.test.mjs
       - name: Build bundled Korean stat translations
         run: node scripts/build-ko-stats.mjs
       - name: Bundle Korean and English skill keyword notes
         run: node scripts/build-keyword-notes.mjs
+      - name: Bundle pinned official GGG passive tree artwork
+        run: node scripts/bundle-tree-art.mjs
       - name: Version every browser module and stylesheet
         run: node scripts/version-assets.mjs
       - uses: actions/configure-pages@v6
