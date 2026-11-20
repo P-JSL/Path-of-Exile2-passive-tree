@@ -52,6 +52,27 @@ for (const [type, slug] of [['passive','passive-skill-tree'],['atlas','atlas-ski
     console.log('PoE2DB ' + type + ' sample: ' + JSON.stringify(matchedName.slice(0,2).map(n=>({src:n.name, en:enMap.get(Number(n.skill ?? n.hash)).stats?.slice(0,1), ko:koMap.get(Number(n.skill ?? n.hash)).stats?.slice(0,1)}))).slice(0,500));
   } catch (error) { console.warn('PoE2DB ' + type + ' not available: ' + String(error)); }
 }
+const normalizeEnglish = value => simplify(value).replace(/\[([^\]]+)\]/g, '$1').replace(/\s+/g, ' ').trim();
+// A bilingual phrase match is safe even if the tree's node IDs moved between patches.
+const bilingualNames = new Map(), bilingualStats = new Map();
+function putUnique(map, english, korean) {
+  if (!english || !korean || english === korean) return;
+  const key = normalizeEnglish(english);
+  if (!map.has(key)) map.set(key, korean);
+  else if (map.get(key) !== korean) map.set(key, null);
+}
+for (const pair of Object.values(poe2db)) {
+  const asMap = obj => new Map(Object.values(obj.nodes || {}).map(n => [Number(n.skill ?? n.hash), n]));
+  const enNodes = asMap(pair.en), koNodes = asMap(pair.ko);
+  for (const [id, en] of enNodes) {
+    const ko = koNodes.get(id);
+    if (!ko) continue;
+    putUnique(bilingualNames, en.name, simplify(ko.name));
+    if (!Array.isArray(en.stats) || !Array.isArray(ko.stats) || en.stats.length !== ko.stats.length) continue;
+    for (let index = 0; index < en.stats.length; index++) putUnique(bilingualStats, en.stats[index], simplify(ko.stats[index]));
+  }
+}
+console.log('PoE2DB bilingual phrases: names=' + bilingualNames.size + ', stats=' + bilingualStats.size);
 const placeholderRe = /\{(\d+)(?::[^}]*)?\}/g;
 const indexedTemplates = new Map();
 for (const [english, korean] of Object.entries(upstream)) {
@@ -97,6 +118,8 @@ for (const dict of [upstream, translate]) for (const [english, korean] of Object
 }
 function translateLine(text) {
   if (locale.stats?.[text]) return locale.stats[text];
+  const bilingual = bilingualStats.get(normalizeEnglish(text));
+  if (bilingual) return bilingual;
   if (typeof upstream[text] === 'string') return upstream[text];
   if (typeof translate[text] === 'string') return translate[text];
   const indexed = interpolateIndexedTemplate(text);
@@ -117,10 +140,11 @@ const newNames = {};
 for (const node of [...Object.values(all.nodes), ...Object.values(atlas.passives), ...Object.values(genesis.passives)]) {
   const name = node.name;
   if (!name || locale.names?.[name] || staticPassives.names?.[name]) continue;
-  if (typeof upstream[name] === 'string' && upstream[name] !== name) newNames[name] = upstream[name];
+  if (bilingualNames.get(name)) newNames[name] = bilingualNames.get(name);
+  else if (typeof upstream[name] === 'string' && upstream[name] !== name) newNames[name] = upstream[name];
 }
 const directNodes = {passive:{}, atlas:{}, genesis:{}};
-const normalizeEnglish = value => simplify(value).replace(/\[([^\]]+)\]/g, '$1').replace(/\s+/g, ' ').trim();
+
 for (const [type, rawNodes] of [
   ['passive', Object.values(all.nodes)],
   ['atlas', Object.values(atlas.passives)],
