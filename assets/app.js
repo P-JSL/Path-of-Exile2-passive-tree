@@ -1,6 +1,7 @@
 import { importPobCode, resolvePobTree } from './pob-import.js';
 import { renderPobProfile } from './pob-profile.js';
 import { partitionPobWeaponSets } from './weapon-sets.js';
+import { oracleDifference } from './oracle-difference.js';
 import { socketedJewelDetails } from './pob-jewels.js';
 import { buildTree, visibleNodes, shortestAllocationPath, pruneAllocations } from './tree-model.js';
 import { TreeRenderer } from './renderer.js';
@@ -21,6 +22,7 @@ let pobBuildView = false;
 let pobWeaponView = 'all';
 let pobProfileBuild = null, pobProfileItemSet = '', pobProfileSkillSet = '';
 let tree = null, renderer = null, extraTrees = {};
+let oracleDiff = null;
 let localeCatalog = { names: {}, stats: {} };
 let extraLoadPromise = null;
 let glossaryPromise = null;
@@ -344,7 +346,10 @@ function populateAscendancies() {
   for (const asc of list) { const o = document.createElement('option'); o.value = asc.name; o.textContent = localName(asc.name); select.append(o); }
   select.value = state.ascendancy;
   $('oracle-settings').hidden = state.ascendancy !== 'Oracle' || state.mode !== 'passive';
-  $('oracle-legend').hidden = $('oracle-settings').hidden || !state.showOracle;
+  $('oracle-legend').hidden = $('oracle-settings').hidden ||
+    !(state.showOracle || $('oracle-compare').checked);
+  $('oracle-legend-label').textContent = t(state.showOracle ?
+    'oracleDiffShownLegend' : 'oracleDiffHiddenLegend');
   $('oracle-toggle').checked = state.showOracle;
   $('class-description').textContent = t('classSummary', {name:localName(state.className),count:list.length});
 }
@@ -363,6 +368,65 @@ function updateHeader() {
   $('class-controls').hidden = isExtraMode();
   updatePoints();
 }
+/**
+ * Source data comparison stays separate from the actual allocation set.
+ * Expanded node lists identify all new positions without moving the camera.
+ */
+function renderOracleDifference() {
+  const active = state.mode === 'passive' && state.ascendancy === 'Oracle' && !!oracleDiff;
+  const summary = $('oracle-diff-summary'), list = $('oracle-diff-list');
+  const banner = $('oracle-diff-banner');
+  banner.hidden = !active || !$('oracle-compare').checked;
+  if (!active) { summary.textContent = ''; list.replaceChildren(); return; }
+  summary.textContent = t('oracleDiffCount',{
+    base:oracleDiff.baseCount.toLocaleString(state.language),
+    extra:oracleDiff.nodes.length.toLocaleString(state.language),
+    edges:oracleDiff.edges.length.toLocaleString(state.language)
+  });
+  banner.dataset.view = state.showOracle ? 'shown' : 'preview';
+  banner.textContent = t(state.showOracle?'oracleDiffShown':'oracleDiffPreview',{
+    count:oracleDiff.nodes.length.toLocaleString(state.language)
+  });
+  const fragment=document.createDocumentFragment();
+  for (const group of oracleDiff.groups) {
+    const heading=document.createElement('div');
+    heading.className='oracle-diff-group';
+    heading.textContent=t('oracleDiffGroup',{group:group.id,count:group.nodes.length});
+    fragment.append(heading);
+    for (const node of group.nodes) {
+      const item=document.createElement('button');
+      item.type='button';item.className='oracle-node-entry';
+      item.dataset.nodeId=String(node.id);
+      if (node.id === state.selectedId) item.classList.add('active');
+      const name=document.createElement('strong');
+      name.textContent=localName(node);
+      const detail=document.createElement('small');
+      detail.textContent=t('oracleDiffNodeStatus',{id:node.id});
+      item.append(name,detail);
+      item.addEventListener('click',()=>{
+        // Choosing a hidden result reveals that source node in the live map.
+        // No auto-focus or implicit zoom: PR #23/#24 camera behavior persists.
+        if (!state.showOracle) {
+          state.showOracle=true;
+          $('oracle-toggle').checked=true;
+          scene();
+        }
+        selectSearchNode(node.id);
+        for (const button of list.querySelectorAll('.oracle-node-entry'))
+          button.classList.toggle('active',button.dataset.nodeId===String(node.id));
+      });
+      fragment.append(item);
+    }
+  }
+  if (!oracleDiff.groups.length) {
+    const empty=document.createElement('p');
+    empty.textContent=t('oracleDiffEmpty');fragment.append(empty);
+  }
+  list.replaceChildren(fragment);
+  $('oracle-legend').hidden = !($('oracle-compare').checked || state.showOracle);
+  $('oracle-legend-label').textContent=t(state.showOracle ?
+    'oracleDiffShownLegend':'oracleDiffHiddenLegend');
+}
 function scene() {
   const model = activeTree();
   // Keep the same camera when refreshing data for an already displayed tree.
@@ -376,7 +440,7 @@ function scene() {
   blockedOptions = blockedChoiceOptions(model, allocatedSet());
   searchCache = null;
   if (state.selectedId && !currentIds.has(state.selectedId)) state.selectedId = null;
-  applyLanguageText(); populateAscendancies(); updateHeader();
+  applyLanguageText(); populateAscendancies(); updateHeader(); renderOracleDifference();
   const count = currentNodes.length;
   $('scene-count').textContent = t('nodeCount',{count:count.toLocaleString(state.language)});
   // Displayed link count is based on visible physical connectors after filtering.
@@ -389,7 +453,10 @@ function scene() {
   updateWeaponSetControls();
   renderer.setScene(currentNodes, model.edges, { allocated: displayedAllocatedSet(), rootId: rootId(), selectedId: state.selectedId, lockedOracle: !oracleUnlocked(), orbitRadii: model.orbitRadii ?? [], localizeName: localName, mode: state.mode, className: state.className, classStart: tree.classStarts.get(state.className), preserveViewport,
     weaponSet1: new Set(importSpec?.weaponSets[0] || []), weaponSet2: new Set(importSpec?.weaponSets[1] || []),
-    socketedJewelIds: new Set(socketedJewelDetails(importSpec).keys()) });
+    socketedJewelIds: new Set(socketedJewelDetails(importSpec).keys()),
+    oracleDifference: state.mode === 'passive' && state.ascendancy === 'Oracle' ? oracleDiff : null,
+    oracleShown:state.showOracle,
+    oracleComparison:$('oracle-compare').checked });
   // PoE2's character tree is read from the class origin, not as 4,000 tiny dots.
   // Keep the entire world rendered and the existing Fit All control available.
   if (!preserveViewport && (state.mode === 'passive' || state.mode === 'ascendancy')) {
@@ -920,7 +987,7 @@ function wireUI() {
       renderer.update({localizeName:localName});
       showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null);
       renderAllocatedList(); refreshSearch(); updateDataSummary();
-      renderPobOverview();
+      renderOracleDifference(); renderPobOverview();
     }
     persist();
   });
@@ -928,6 +995,10 @@ function wireUI() {
   $('class-select').addEventListener('change', e => { state.className = e.target.value; state.selectedId = null; populateAscendancies(); scene(); });
   $('ascendancy-select').addEventListener('change', e => { state.ascendancy = e.target.value; state.selectedId = null; scene(); });
   $('oracle-toggle').addEventListener('change', e => { state.showOracle = e.target.checked; scene(); });
+  $('oracle-compare').addEventListener('change', e => {
+    renderer?.update({oracleComparison:e.target.checked});
+    renderOracleDifference();
+  });
   $('search-input').addEventListener('input', e => {
     state.search = e.target.value;
     clearTimeout(searchTimer);
@@ -1055,6 +1126,7 @@ async function loadTree() {
   extraPromise.catch(error => console.warn('Optional Atlas/Genesis data unavailable:', error));
   try {
     tree = buildTree(await fetchJSON(DATA_FILES.passive));
+    oracleDiff = oracleDifference(tree);
     if (tree.nodes.size < 4000 || tree.ascendancies.length < 20 || tree.classes.length < 8)
       throw new Error('트리 데이터가 불완전합니다.');
     if (isExtraMode()) await extraPromise;
