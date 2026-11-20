@@ -39,7 +39,6 @@ export function validateAllocationRoute(tree, existing, route, context = {}) {
   const rootIds = new Set(Array.isArray(context.roots) ? context.roots : [context.roots]);
   const accessible = context.visibleIds || new Set(tree.nodes.keys());
   const otherAllocated = context.ascendancyAllocated || {};
-  const selectedClass = context.className || '';
   const required = new Set();
   for (const id of proposed) {
     const node = tree.nodes.get(id);
@@ -63,10 +62,6 @@ export function validateAllocationRoute(tree, existing, route, context = {}) {
           return {ok:false,reason:'prerequisite',nodeId:id,requiredId:prerequisite};
       }
     }
-    // A class-specific node substitution uses the game-defined alternative ID;
-    // do not silently reinterpret it as a different class's passive.
-    if (node.isSwitchable && node.options && selectedClass && node.options[selectedClass]?.id === node.id)
-      return {ok:false,reason:'unavailable',nodeId:id};
     current.add(id);
     required.add(id);
   }
