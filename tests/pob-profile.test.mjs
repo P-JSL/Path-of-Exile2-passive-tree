@@ -51,13 +51,17 @@ test('profile renders safely using textContent without interpolating build HTML'
     const gear=ids.get('pob-profile-equipment').children[0].children[0];
     assert.equal(gear.children[1].textContent,'Warm Coat');
     assert.equal(gear.children[3].name,'details');
-    assert.equal(gear.children[3].children[1].textContent,source.itemSets[0].slots[0].text);
+    assert.equal(gear.children[3].open,true);
+    assert.equal(gear.children[0].textContent,'갑옷');
+    assert.match(gear.children[3].children[1].textContent,/등급: 희귀/);
+    assert.match(gear.children[3].children[1].textContent,/Warm Coat/);
     const jewel=ids.get('pob-profile-jewel-list').children[0].children[1];
     assert.equal(jewel.children[2].name,'details');
-    assert.equal(jewel.children[2].children[1].textContent,source.specs[0].sockets[0].text);
+    assert.equal(jewel.children[2].open,true);
+    assert.match(jewel.children[2].children[1].textContent,/등급: 고유/);
     const stats=ids.get('pob-profile-stat-list').children[0].children;
     assert.equal(stats[0].children[0].textContent,'전체 DPS');
-    assert.equal(stats[0].children[1].textContent,'1467894');
+    assert.equal(stats[0].children[1].textContent,'1,467,894');
   } finally {globalThis.document=oldDocument;}
 });
 
@@ -82,4 +86,55 @@ test('alternate source equipment and skill sets are selectable without mutating 
   assert.equal(alternative.activeItemSet,'2');
   assert.equal(alternative.activeSkillSet,'4');
   assert.equal(profileSnapshot(alternative).itemSet.id,'2');
+});
+
+test('source Korean dictionary translates item base names, unique titles and gem names in profile',()=>{
+  const oldDocument=globalThis.document;
+  const ids=new Map();
+  const element=name=>({
+    name,children:[],className:'',textContent:'',title:'',open:false,
+    classList:{add(){}},
+    append(...values){this.children.push(...values)},
+    replaceChildren(...values){this.children=[...values]}
+  });
+  globalThis.document={
+    createElement:element,createDocumentFragment:()=>element('fragment'),
+    getElementById:id=>{if(!ids.has(id))ids.set(id,element('root'));return ids.get(id)}
+  };
+  try {
+    const dictionary={
+      gems:{Spark:'전기불꽃','Arcane Tempo':'비전의 속도'},
+      items:{'Splendid Vest':'화려한 조끼'},
+      uniques:{'Emerald Jewel':'에메랄드 주얼'}
+    };
+    renderPobProfile(source,0,'ko',{},{
+      dictionary,characterName:value=>value==='Oracle'?'오라클':value
+    });
+    const gear=ids.get('pob-profile-equipment').children[0].children[0];
+    assert.equal(gear.children[0].textContent,'갑옷');
+    assert.match(gear.children[3].children[1].textContent,/화려한 조끼/);
+    assert.match(ids.get('pob-profile-name').textContent,/오라클/);
+    const group=ids.get('pob-profile-skill-list').children[0].children[0];
+    assert.equal(group.children[0].textContent,'전기불꽃');
+    assert.equal(group.children[1].children[0].textContent,'전기불꽃 레벨 20 퀄리티 20');
+    assert.equal(group.children[1].children[1].textContent,'[비활성] 비전의 속도 레벨 3 퀄리티 0');
+  } finally {globalThis.document=oldDocument}
+});
+test('switching to English keeps source gear text collapsed and unmodified',()=>{
+  const oldDocument=globalThis.document;
+  const ids=new Map();
+  const el=name=>({name,children:[],className:'',textContent:'',title:'',open:false,
+    classList:{add(){}},append(...x){this.children.push(...x)},
+    replaceChildren(...x){this.children=[...x]}});
+  globalThis.document={createElement:el,createDocumentFragment:()=>el('fragment'),
+    getElementById:id=>{if(!ids.has(id))ids.set(id,el('root'));return ids.get(id)}};
+  try {
+    renderPobProfile(source,0,'en');
+    const gear=ids.get('pob-profile-equipment').children[0].children[0];
+    assert.equal(gear.children[0].textContent,'Body Armour');
+    assert.equal(gear.children[3].open,false);
+    assert.equal(gear.children[3].children[1].textContent,source.itemSets[0].slots[0].text);
+    const stats=ids.get('pob-profile-stat-list').children[0].children;
+    assert.equal(stats[0].children[1].textContent,'1467894');
+  } finally {globalThis.document=oldDocument}
 });
