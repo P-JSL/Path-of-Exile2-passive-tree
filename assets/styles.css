@@ -67,3 +67,29 @@
 .budget-control .helper{margin:9px 0;font-size:11px}
 .budget-usage{font-variant-numeric:tabular-nums;color:#94d5c6;font-size:12px;font-weight:700;margin:11px 0 0}
 .plan-audit{color:#e8c08a;background:#3b2b21;border-left:3px solid #c99f57;border-radius:5px;padding:10px;font-size:11px;line-height:1.6;margin:10px 0 0;overflow-wrap:anywhere}
+
+/* PoE.ninja-inspired map-first workspace. The game art and planner stay independent. */
+@media(min-width:851px){
+  .site-header{height:58px;padding-inline:18px;gap:16px}
+  .workspace{height:calc(100% - 58px);grid-template-columns:258px minmax(0,1fr) 272px}
+  .workspace.filters-collapsed{grid-template-columns:0 minmax(0,1fr) 272px}
+  .workspace.details-collapsed{grid-template-columns:258px minmax(0,1fr) 0}
+  .workspace.filters-collapsed.details-collapsed{grid-template-columns:0 minmax(0,1fr) 0}
+  .workspace.filters-collapsed>.sidebar,.workspace.details-collapsed>.details-panel{visibility:hidden;padding:0;border:0;overflow:hidden}
+  .stage-header{min-height:76px;padding:12px 18px;align-items:center}
+  .stage-header h1{font-size:21px}
+  .sidebar,.details-panel{padding:14px}
+  .control-group{padding-block:14px}
+}
+.stage-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.stage-tool{border:1px solid #3f4d5e;background:#182331;color:#d0dddf;padding:7px 10px;border-radius:5px;font-size:11px;white-space:nowrap;min-height:32px}
+.stage-tool:hover,.stage-tool:focus-visible{border-color:#b49a69;background:#28374a;color:#fff4da}
+@media(max-width:1150px) and (min-width:851px){
+  .workspace{grid-template-columns:232px minmax(0,1fr) 235px}
+  .workspace.filters-collapsed{grid-template-columns:0 minmax(0,1fr) 235px}
+  .workspace.details-collapsed{grid-template-columns:232px minmax(0,1fr) 0}
+}
+@media(max-width:850px){
+  .stage-tools .stage-tool{display:none}
+  .stage-tools{gap:4px}
+}
