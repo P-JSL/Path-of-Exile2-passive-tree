@@ -614,3 +614,10 @@ textarea:focus-visible,summary:focus-visible,a:focus-visible{
 @media (prefers-reduced-motion:reduce){
   .tree-tab,.wide-button,.stage-tool{transition:none}
 }
+
+/* Dedicated guide-page navigation: an anchor, not a tree-tab button. */
+.guide-nav-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border:1px solid #91724b;border-radius:10px;background:#382f27;color:#ffe4ae;font-size:12px;font-weight:800;white-space:nowrap;text-decoration:none}
+.guide-nav-link:hover{background:#56402d;color:#fff4dc;text-decoration:none}
+.guide-nav-link:focus-visible{outline:3px solid #69d5c8;outline-offset:2px}
+@media(max-width:850px){.guide-nav-link{flex:1;min-width:0;min-height:39px;padding:0 5px;font-size:11px}}
+@media(max-width:390px){.guide-nav-link{padding:0 3px;font-size:10px}}
