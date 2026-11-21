@@ -1036,11 +1036,24 @@ function resetImportedBuild() {
 
 function openOverlay(which) {
   const sidebar = which === 'sidebar', details = which === 'details';
+  // Dismiss the mobile keyboard before moving from search to the detail sheet.
+  if (!sidebar && $('sidebar').contains(document.activeElement)) document.activeElement.blur();
+  if (!details && $('details-panel').contains(document.activeElement)) document.activeElement.blur();
   $('sidebar').classList.toggle('open', sidebar);
   $('details-panel').classList.toggle('open', details);
   $('scrim').hidden = !(sidebar || details);
+  $('sidebar-toggle').setAttribute('aria-expanded', String(sidebar));
+  $('mobile-settings').setAttribute('aria-pressed', String(sidebar));
+  $('mobile-details').setAttribute('aria-pressed', String(details));
 }
 function closeOverlay() { openOverlay('none'); }
+/** Open a hidden desktop filter panel before focusing its search input. */
+function focusSearch() {
+  const workspace = document.querySelector('.workspace');
+  if (window.matchMedia('(max-width:850px)').matches) openOverlay('sidebar');
+  else if (workspace.classList.contains('filters-collapsed')) toggleDesktopPanel('filters');
+  $('search-input').focus({preventScroll:true});
+}
 function toggleDesktopPanel(side) {
   const workspace = document.querySelector('.workspace');
   const filters = side === 'filters';
@@ -1171,6 +1184,7 @@ function wireUI() {
   $('pob-reset').addEventListener('click', resetImportedBuild);
   $('pob-profile-reset').addEventListener('click', resetImportedBuild);
   $('pob-import-reset').addEventListener('click', resetImportedBuild);
+  $('quick-search').addEventListener('click', focusSearch);
   $('toggle-filters').addEventListener('click', () => toggleDesktopPanel('filters'));
   $('toggle-details').addEventListener('click', () => toggleDesktopPanel('details'));
   $('clear-plan').addEventListener('click', () => { if (confirm(t('clearPrompt'))) { saveAllocated(new Set()); renderer.update({ allocated: new Set() }); showDetail(state.selectedId ? activeTree().nodes.get(state.selectedId) : null); toast(t('cleared')); } });
@@ -1180,17 +1194,29 @@ function wireUI() {
   $('keyword-note-close').addEventListener('click', () => closeKeywordNote(true));
   $('scrim').addEventListener('click', closeOverlay);
   $('mobile-settings').addEventListener('click', () => openOverlay('sidebar'));
-  $('mobile-search').addEventListener('click', () => { openOverlay('sidebar'); $('search-input').focus(); });
+  $('mobile-search').addEventListener('click', focusSearch);
   $('mobile-details').addEventListener('click', () => openOverlay('details'));
   document.addEventListener('keydown', e => {
+    const typing = e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement ||
+      e.target instanceof HTMLSelectElement || e.target.isContentEditable;
+    const shortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k';
+    if (shortcut || (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey)) {
+      e.preventDefault();
+      focusSearch();
+      return;
+    }
     if (e.key === 'Escape') {
       if (!$('keyword-note').hidden) closeKeywordNote(true);
       else closeOverlay();
     }
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    if (typing || e.altKey || e.ctrlKey || e.metaKey || !renderer) return;
     if (e.key === '+' || e.key === '=') renderer.zoomBy(1.3);
     else if (e.key === '-') renderer.zoomBy(1 / 1.3);
     else if (e.key.toLowerCase() === 'f') renderer.fitAll();
+  });
+  window.matchMedia('(max-width:850px)').addEventListener('change', e => {
+    if (!e.matches && !$('scrim').hidden) closeOverlay();
   });
 }
 async function loadTree() {

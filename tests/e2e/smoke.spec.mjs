@@ -514,3 +514,62 @@ test('imported-build reset clears only imported plans, requires consent, and wor
   }
   expect(errors).toEqual([]);
 });
+
+
+test('responsive navigation and keyboard search stay reachable', async ({page, isMobile}) => {
+  const runtimeErrors = [];
+  page.on('pageerror', error => runtimeErrors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  if (isMobile) {
+    await expect(page.locator('.mobile-bottom-bar')).toBeVisible();
+    await page.locator('#mobile-settings').click();
+    await expect(page.locator('#sidebar')).toHaveClass(/open/);
+    await expect(page.locator('#mobile-settings')).toHaveAttribute('aria-pressed','true');
+    await page.locator('#sidebar-close').click();
+    await expect(page.locator('#sidebar')).not.toHaveClass(/open/);
+    await page.locator('#mobile-search').click();
+    await expect(page.locator('#search-input')).toBeFocused();
+    const bounds = await page.locator('#mobile-search').boundingBox();
+    expect(bounds.width).toBeGreaterThan(80);
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
+  } else {
+    await expect(page.locator('#quick-search')).toBeVisible();
+    await page.locator('#toggle-filters').click();
+    await expect(page.locator('.workspace')).toHaveClass(/filters-collapsed/);
+    await page.locator('#quick-search').click();
+    await expect(page.locator('.workspace')).not.toHaveClass(/filters-collapsed/);
+    await expect(page.locator('#search-input')).toBeFocused();
+    await page.locator('#quick-search').click();
+    await page.keyboard.press('Control+k');
+    await expect(page.locator('#search-input')).toBeFocused();
+  }
+  const horizontalOverflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth > window.innerWidth + 1);
+  expect(horizontalOverflow).toBe(false);
+  expect(runtimeErrors).toEqual([]);
+});
+
+test('imported PoB profile is accessible again from the mobile tree view', async ({page, isMobile}) => {
+  test.skip(!isMobile, 'mobile-specific visibility regression');
+  await page.goto('/');
+  await expect(page.locator('#loading-overlay')).toBeHidden({timeout:45000});
+  await page.locator('#mobile-search').click();
+  await page.locator('#search-input').fill('fire');
+  const first = page.locator('.result-item').first();
+  await expect(first).toBeVisible();
+  const id = await first.getAttribute('data-node-id');
+  await page.locator('#search-clear').click();
+  await page.locator('.side-fold').filter({has:page.locator('#pob-code')}).locator('summary').click();
+  const xml = '<PathOfBuilding2><Build className="Druid" ascendClassName="Oracle" level="60"/>' +
+    '<Tree activeSpec="1"><Spec nodes="' + id + '" treeVersion="0_5" title="Mobile profile"/></Tree></PathOfBuilding2>';
+  await page.locator('#pob-code').fill(xml);
+  await page.locator('#pob-import').click();
+  await expect(page.locator('#pob-build-stage')).toBeVisible();
+  await page.locator('#pob-back-tree').click();
+  const button = page.locator('#pob-view-toggle');
+  await expect(button).toBeVisible();
+  await button.click();
+  await expect(page.locator('#pob-build-stage')).toBeVisible();
+});
