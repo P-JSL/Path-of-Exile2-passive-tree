@@ -23,6 +23,19 @@ export function versionEntryAssets(html, sha) {
   return result;
 }
 
+
+export function versionGuideAssets(html, sha) {
+  if (!/^[a-f0-9]{40}$/i.test(sha)) throw new Error('Expected a full Git commit SHA');
+  const result = html
+    .replace(/src="\.\/assets\/guides\.js(?:\?v=[a-f0-9]+)?"/,
+      'src="./assets/guides.js?v=' + sha + '"')
+    .replace(/href="\.\/assets\/guides\.css(?:\?v=[a-f0-9]+)?"/,
+      'href="./assets/guides.css?v=' + sha + '"');
+  if (!result.includes('guides.js?v=' + sha) || !result.includes('guides.css?v=' + sha))
+    throw new Error('Could not version the build-guide assets');
+  return result;
+}
+
 async function main() {
   const sha = process.env.GITHUB_SHA;
   if (!/^[a-f0-9]{40}$/i.test(sha || '')) throw new Error('GITHUB_SHA is required');
@@ -32,6 +45,7 @@ async function main() {
     if (next !== current) writeFileSync(path, next);
   }
   writeFileSync('index.html', versionEntryAssets(readFileSync('index.html','utf8'), sha));
+  writeFileSync('guides.html', versionGuideAssets(readFileSync('guides.html', 'utf8'), sha));
   console.log('Versioned browser modules, CSS and entrypoint: ' + sha);
 }
 
