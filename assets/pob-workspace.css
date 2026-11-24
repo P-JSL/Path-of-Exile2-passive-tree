@@ -3,3 +3,5 @@
 @media(max-width:600px){header{padding:.8rem}main{padding:.75rem}section{padding:.85rem}.actions button{flex:1 1 100%}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.gem{grid-template-columns:1fr 1fr}.gem>strong{grid-column:1/-1}input,select,textarea{font-size:16px}}
 
 #workspace.dirty .metrics{opacity:.45}#workspace.dirty .metrics::before{content:'변경 전 수치 · 재계산 필요';color:#ffca82;grid-column:1/-1}
+
+#node-list{overflow-wrap:anywhere;max-height:12rem;overflow:auto}
