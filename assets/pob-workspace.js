@@ -67,6 +67,7 @@ function setBusy(value){
   busy=value;
   for(const id of ['load','saved','recalc','xml-apply','source','spec','item-set','skill-set','level','xml'])$(id).disabled=value;
   for(const id of ['items','gems'])$(id).inert=value;
+  if(!value)for(const id of ['spec','item-set','skill-set'])$(id).disabled=!$(id).options.length;
   $('copy').disabled=value||dirty;$('main-skill').disabled=value||dirty;$('config').inert=value||dirty;
 }
 async function action(fn){
@@ -240,3 +241,4 @@ $('reset').onclick=()=>{
 };
 fetch(new URL('../data/pob-ko.json',import.meta.url)).then(r=>r.ok?r.json():{}).then(d=>{dictionary=d;}).catch(()=>{});
 window.addEventListener('pagehide',closeEngine);
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
