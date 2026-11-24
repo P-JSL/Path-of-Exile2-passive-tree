@@ -74,7 +74,6 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/pob-smoke" --no-save --no-package-lock playwright@1.58.2
           "$RUNNER_TEMP/pob-smoke/node_modules/.bin/playwright" install --with-deps chromium webkit
           POB_PLAYWRIGHT_PACKAGE="$RUNNER_TEMP/pob-smoke/package.json" node scripts/smoke-pob-engine.mjs
-          rm -f .pob-smoke-example
       - name: Version every browser module and stylesheet
         run: node scripts/version-assets.mjs
       - uses: actions/configure-pages@v6
