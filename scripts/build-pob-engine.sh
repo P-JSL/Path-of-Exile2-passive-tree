@@ -35,6 +35,8 @@ replaceOnce('local frameOk, frameErr = pcall(runCallback, "OnFrame")','local fra
 replaceOnce('print("BuildModList after config change (non-fatal): " .. tostring(modErr))','return dkjson.encode({ error = tostring(modErr) })');
 replaceOnce('print("OnFrame after config change (non-fatal): " .. tostring(err))','return dkjson.encode({ error = tostring(err) })');
 replaceOnce('print("OnFrame after skill switch (non-fatal): " .. tostring(err))','return dkjson.encode({ error = tostring(err) })');
+replaceOnce('print("OnFrame after alloc (non-fatal): " .. tostring(err))','return dkjson.encode({ error = tostring(err) })');
+replaceOnce('print("OnFrame after dealloc (non-fatal): " .. tostring(err))','return dkjson.encode({ error = tostring(err) })');
 writeFileSync(path,s);
 JS
 npm exec --yes --package=esbuild@0.25.12 -- esbuild packages/web/src/worker/calc-worker.ts --bundle --format=esm --target=es2020 --external:./wasm/lua.mjs --outfile="$OUT/worker.js"
