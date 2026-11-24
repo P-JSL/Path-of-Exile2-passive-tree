@@ -9,7 +9,7 @@ const child=(node,name)=>Array.from(node?.children||[]).find(el=>el.tagName===na
 const children=(node,name)=>Array.from(node?.children||[]).filter(el=>el.tagName===name);
 let worker=null, pending=null, requestId=0, ready=false, busy=false, dirty=false;
 let doc=null, engineXml='', dictionary={};
-const responseTypes={init:'init',loadBuild:'loadBuild',getStats:'stats',getSkills:'skills',getDefence:'defence',getConfigOptions:'configOptions',switchMainSkill:'switchMainSkill',setConfig:'setConfig',exportBuild:'exportBuild'};
+const responseTypes={init:'init',loadBuild:'loadBuild',getStats:'stats',getSkills:'skills',getDefence:'defence',getConfigOptions:'configOptions',switchMainSkill:'switchMainSkill',setConfig:'setConfig',exportBuild:'exportBuild',allocNode:'allocNode',deallocNode:'deallocNode'};
 const status=(message,error=false)=>{$('status').textContent=message;$('status').dataset.error=String(error);};
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const labelFor=(caption,control)=>{const l=el('label',caption);l.append(control);return l;};
@@ -61,6 +61,7 @@ function setDirty(value){
   $('copy').disabled=busy||dirty;
   $('main-skill').disabled=busy||dirty;
   $('config').inert=busy||dirty;
+  for(const id of ['node-id','node-add','node-remove'])$(id).disabled=busy||dirty;
   if(value)status('편집한 내용이 아직 계산되지 않았습니다. 변경 적용 및 재계산을 누르세요.');
 }
 function setBusy(value){
@@ -69,6 +70,7 @@ function setBusy(value){
   for(const id of ['items','gems'])$(id).inert=value;
   if(!value)for(const id of ['spec','item-set','skill-set'])$(id).disabled=!$(id).options.length;
   $('copy').disabled=value||dirty;$('main-skill').disabled=value||dirty;$('config').inert=value||dirty;
+  for(const id of ['node-id','node-add','node-remove'])$(id).disabled=value||dirty;
 }
 async function action(fn){
   if(busy)return;setBusy(true);
@@ -105,6 +107,8 @@ function renderEditors(){
   selectSets('spec',tree,'Spec','activeSpec',true);
   selectSets('item-set',items,'ItemSet','activeItemSet');
   selectSets('skill-set',skills,'SkillSet','activeSkillSet');
+  const spec=children(tree,'Spec')[Number($('spec').value)-1];
+  $('node-list').textContent=(spec?.getAttribute('nodes')||'').replaceAll(',',', ');
   $('level').value=build.getAttribute('level')||'';
   $('level').onchange=()=>{
     const v=Number($('level').value);
@@ -228,6 +232,13 @@ $('saved').onclick=()=>action(async()=>{
   if(Number.isInteger(saved.selectedIndex)&&children(tree,'Spec')[saved.selectedIndex])tree.setAttribute('activeSpec',String(saved.selectedIndex+1));
   await loadXml(serialize(sourceDoc));
 });
+for(const [id,type] of [['node-add','allocNode'],['node-remove','deallocNode']]){
+  $(id).onclick=()=>{
+    const nodeId=Number($('node-id').value);
+    if(!Number.isSafeInteger(nodeId)||nodeId<=0){status('유효한 노드 ID를 입력하세요.',true);return;}
+    action(async()=>{await request(type,{nodeId});await refresh();});
+  };
+}
 $('copy').onclick=async()=>{
   if(dirty||!engineXml)return;
   try{await navigator.clipboard.writeText(engineXml);status('계산된 XML 복사 완료');}
