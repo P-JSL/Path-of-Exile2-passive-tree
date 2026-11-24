@@ -74,6 +74,8 @@ function setBusy(value){
 }
 async function action(fn){
   if(busy)return;setBusy(true);
+  // Clear the preceding result before decoding or sending an asynchronous request.
+  status('PoB2 요청 처리 중…');
   try{await fn();}catch(e){
     closeEngine();doc=null;engineXml='';$('workspace').hidden=true;
     status(e.message||String(e),true);
