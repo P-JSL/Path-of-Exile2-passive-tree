@@ -41,7 +41,6 @@ writeFileSync(path,s);
 JS
 npm exec --yes --package=esbuild@0.25.12 -- esbuild packages/web/src/worker/calc-worker.ts --bundle --format=esm --target=es2020 --external:./wasm/lua.mjs --outfile="$OUT/worker.js"
 cp LICENSE "$OUT/LICENSE-pob-web"
-cp example "$ROOT/.pob-smoke-example"
 find vendor/PathOfBuilding-PoE2 -maxdepth 1 -iname 'license*' -type f -exec cp {} "$OUT/" \;
 cp packages/lua-wasm/lua-5.2.4/doc/readme.html "$OUT/LICENSE-lua.html"
 POB="$(git -C vendor/PathOfBuilding-PoE2 rev-parse HEAD)"
