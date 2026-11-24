@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1119">
+<title>Exile Tree · PoB2 계산기</title>
+<link rel="stylesheet" href="./assets/pob-workspace.css">
+<script type="module" src="./assets/pob-workspace.js"></script>
+</head>
+<body>
+<header><a href="./index.html">← 패시브 트리</a><strong>EXILE TREE / PoB2</strong><span id="engine-version">PoB2 Lua · WASM</span></header>
+<main>
+<h1>Path of Building 2</h1>
+<p>실제 PoB2 계산 엔진으로 불러온 빌드를 수정하고 계산합니다. 원본 및 패시브 트리 저장 계획은 변경하지 않습니다. 첫 계산 때 엔진을 다운로드합니다.</p>
+<section>
+<h2>빌드 가져오기</h2>
+<label for="source">PoB2 공유 코드 또는 XML</label>
+<textarea id="source" rows="4" spellcheck="false" autocapitalize="off"></textarea>
+<div class="actions"><button id="saved" type="button">패시브 트리의 원본 가져오기</button><button id="load" type="button">빌드 열기 / 다시 계산</button><button id="reset" type="button">작업 빌드 초기화</button></div>
+<p id="status" role="status" aria-live="polite">빌드를 입력하세요.</p>
+</section>
+<div id="workspace" hidden>
+<section>
+<h2>능력치 · 계산 결과</h2>
+<p>아래 수치는 원본 스냅샷이 아닌 현재 계산 요청의 엔진 출력입니다. 스킬과 설정에 따라 달라집니다.</p>
+<div id="metrics" class="metrics"></div>
+<h3>주력 스킬</h3>
+<label for="main-skill">스킬 그룹</label><select id="main-skill"></select>
+<div id="skill-stats" class="metrics"></div>
+<div id="full-dps"></div>
+</section>
+<section>
+<h2>패시브 · 장비 · 젬</h2>
+<p>현재 작업 빌드의 XML을 편집합니다. 노드 ID와 장비 및 젬 데이터는 원본 PoB 형식을 따릅니다. 변경 후 재계산하세요.</p>
+<label for="spec">패시브 구성</label><select id="spec"></select>
+<label for="item-set">장비 구성</label><select id="item-set"></select>
+<label for="skill-set">스킬 구성</label><select id="skill-set"></select>
+<label for="level">캐릭터 레벨</label><input id="level" type="number" min="1" max="100" step="1">
+<h3>장비 옵션 원문</h3><div id="items"></div>
+<h3>스킬 젬</h3><div id="gems"></div>
+<div class="actions"><button id="recalc" type="button">변경 적용 및 재계산</button></div>
+</section>
+<section><h2>전투 조건</h2><p>엔진에서 제공하는 현재 빌드의 설정만 표시합니다. 설정 변경 시 다른 편집 내용을 먼저 재계산하세요.</p><div id="config"></div></section>
+<section><h2>PoB XML · 내보내기</h2><label for="xml">현재 엔진의 빌드 XML</label><textarea id="xml" rows="8" spellcheck="false"></textarea><div class="actions"><button id="xml-apply" type="button">XML 적용 및 재계산</button><button id="copy" type="button">계산된 XML 복사</button></div><p>복사한 XML을 기존 패시브 트리의 PoB2 가져오기에 붙여넣을 수 있습니다.</p></section>
+</div>
+<footer>PoB2 원본 엔진: <a href="https://github.com/PathOfBuildingCommunity/PathOfBuilding-PoE2">Path of Building Community</a> · 브라우저 실행 브리지: <a href="https://github.com/krauthaufen/pob-web">pob-web</a>. 비공식 팬 도구.</footer>
+</main>
+</body></html>
