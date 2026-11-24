@@ -32,10 +32,14 @@ replaceOnce('fetch("/data/pob-lua.json")','fetch(new URL("./data/pob-lua.json", 
 replaceOnce('import("../../wasm/lua.mjs")','import("./wasm/lua.mjs")');
 replaceOnce('return "/wasm/lua.wasm";','return new URL("./wasm/lua.wasm", import.meta.url).href;');
 replaceOnce('local frameOk, frameErr = pcall(runCallback, "OnFrame")','local frameOk, frameErr = pcall(runCallback, "OnFrame")\n  if not frameOk then return dkjson.encode({ error = tostring(frameErr) }) end');
+replaceOnce('print("BuildModList after config change (non-fatal): " .. tostring(modErr))','return dkjson.encode({ error = tostring(modErr) })');
+replaceOnce('print("OnFrame after config change (non-fatal): " .. tostring(err))','return dkjson.encode({ error = tostring(err) })');
+replaceOnce('print("OnFrame after skill switch (non-fatal): " .. tostring(err))','return dkjson.encode({ error = tostring(err) })');
 writeFileSync(path,s);
 JS
 npm exec --yes --package=esbuild@0.25.12 -- esbuild packages/web/src/worker/calc-worker.ts --bundle --format=esm --target=es2020 --external:./wasm/lua.mjs --outfile="$OUT/worker.js"
 cp LICENSE "$OUT/LICENSE-pob-web"
+cp example "$ROOT/.pob-smoke-example"
 find vendor/PathOfBuilding-PoE2 -maxdepth 1 -iname 'license*' -type f -exec cp {} "$OUT/" \;
 cp packages/lua-wasm/lua-5.2.4/doc/readme.html "$OUT/LICENSE-lua.html"
 POB="$(git -C vendor/PathOfBuilding-PoE2 rev-parse HEAD)"
