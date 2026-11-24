@@ -46,6 +46,10 @@ async function main() {
   }
   writeFileSync('index.html', versionEntryAssets(readFileSync('index.html','utf8'), sha));
   writeFileSync('guides.html', versionGuideAssets(readFileSync('guides.html', 'utf8'), sha));
+  const pob = readFileSync('pob.html','utf8')
+    .replace('src="./assets/pob-workspace.js"', 'src="./assets/pob-workspace.js?v='+sha+'"')
+    .replace('href="./assets/pob-workspace.css"', 'href="./assets/pob-workspace.css?v='+sha+'"');
+  writeFileSync('pob.html',pob);
   console.log('Versioned browser modules, CSS and entrypoint: ' + sha);
 }
 
