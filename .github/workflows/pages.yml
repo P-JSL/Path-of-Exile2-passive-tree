@@ -2,6 +2,15 @@ name: Publish Exile Tree to GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pob.html'
+      - 'assets/pob-*.js'
+      - 'assets/pob-*.css'
+      - 'scripts/*pob*'
+      - 'scripts/version-assets.mjs'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -11,7 +20,7 @@ permissions:
 
 # Keep one active publisher and its build artifact together.
 concurrency:
-  group: exile-tree-pages
+  group: exile-tree-pages-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
   cancel-in-progress: false
 
 jobs:
@@ -25,6 +34,9 @@ jobs:
       - name: Validate JavaScript syntax and bundled game data
         run: |
           node --check assets/app.js
+          node --check assets/pob-workspace.js
+          node --check scripts/smoke-pob-engine.mjs
+          bash -n scripts/build-pob-engine.sh
           node --check assets/i18n.js
           node --check assets/renderer.js
           node --check assets/tree-model.js
@@ -47,15 +59,33 @@ jobs:
         run: node scripts/build-keyword-notes.mjs
       - name: Bundle pinned official GGG passive tree artwork
         run: node scripts/bundle-tree-art.mjs
+      - name: Install pinned Emscripten SDK
+        run: |
+          git clone --depth 1 --branch 3.1.74 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 3.1.74
+          "$RUNNER_TEMP/emsdk/emsdk" activate 3.1.74
+      - name: Build pinned PoB2 Lua WebAssembly engine
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          bash scripts/build-pob-engine.sh
+      - name: Verify actual engine in desktop Chromium and mobile WebKit
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pob-smoke" --no-save --no-package-lock playwright@1.58.2
+          "$RUNNER_TEMP/pob-smoke/node_modules/.bin/playwright" install --with-deps chromium webkit
+          POB_PLAYWRIGHT_PACKAGE="$RUNNER_TEMP/pob-smoke/package.json" node scripts/smoke-pob-engine.mjs
+          rm -f .pob-smoke-example
       - name: Version every browser module and stylesheet
         run: node scripts/version-assets.mjs
       - uses: actions/configure-pages@v6
+        if: github.event_name != 'pull_request'
       - name: Upload validated static website
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5
         with:
           path: .
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     environment:
